@@ -11,6 +11,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.widget.Toast;
 
 import com.google.android.gms.location.LocationListener;
@@ -24,7 +25,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 // https://github.com/googlemaps/android-samples 참고
 
-public class MapsActivity extends FragmentActivity
+public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback,
         GoogleMap.OnMyLocationButtonClickListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
@@ -76,8 +77,8 @@ public class MapsActivity extends FragmentActivity
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             // Permission to access the location is missing.
-//            PermissionUtils.requestPermission(this, LOCATION_PERMISSION_REQUEST_CODE,
-//                    Manifest.permission.ACCESS_FINE_LOCATION, true);
+            PermissionUtils.requestPermission(this, LOCATION_PERMISSION_REQUEST_CODE,
+                    Manifest.permission.ACCESS_FINE_LOCATION, true);
         } else if (mMap != null) {
             // Access to the location has been granted to the app.
             mMap.setMyLocationEnabled(true);
