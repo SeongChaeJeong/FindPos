@@ -1,41 +1,81 @@
 package com.demco.goopy.findtoto;
 
-import android.*;
 import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.location.LocationManager;
+import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentActivity;
-import android.os.Bundle;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.location.LocationListener;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.util.ArrayList;
+import java.util.List;
 
 // https://github.com/googlemaps/android-samples 참고
 
 public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback,
+        GoogleMap.OnCircleClickListener,
+        GoogleMap.OnMarkerClickListener,
         GoogleMap.OnMyLocationButtonClickListener,
+        GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener, GoogleMap.OnCameraIdleListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
 
-    Double latitude = 0.0;
-    Double longitude = 0.0;
+    private TextView mTapTextView;
+    private TextView mCameraTextView;
     static final LatLng SEOUL = new LatLng(37.56, 126.97);
     private GoogleMap mMap;
     private boolean mPermissionDenied = false;
     private LocationManager manager;
+
+    private static final double DEFAULT_RADIUS_METERS = 200;
+    private static final LatLng YJ = new LatLng(37.4799, 127.0124);
+    private Marker mBrisbane;
+
+    private List<DraggableCircle> mCircles = new ArrayList<>(1);
+
+    private class DraggableCircle {
+        private final Marker mCenterMarker;
+        private final Marker mRadiusMarker;
+        private final Circle mCircle;
+        private double mRadiusMeters;
+
+        public DraggableCircle(LatLng center, double radiusMeters) {
+            mRadiusMeters = radiusMeters;
+            mCenterMarker = mMap.addMarker(new MarkerOptions()
+                    .position(center)
+                    .draggable(true));
+            mRadiusMarker = mMap.addMarker(new MarkerOptions()
+                    .position(YJ)
+                    .draggable(true)
+                    .icon(BitmapDescriptorFactory.defaultMarker(
+                            BitmapDescriptorFactory.HUE_AZURE)));
+            mCircle = mMap.addCircle(new CircleOptions()
+                    .center(center)
+                    .radius(radiusMeters)
+//                    .strokeWidth(mStrokeWidthBar.getProgress())
+//                    .strokeColor(mStrokeColorArgb)
+//                    .fillColor(mFillColorArgb)
+                    .clickable(true));
+        }
+
+        public void setClickable(boolean clickable) {
+            mCircle.setClickable(clickable);
+        }
+    }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
@@ -43,6 +83,8 @@ public class MapsActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+        mTapTextView = (TextView) findViewById(R.id.tap_text);
+        mCameraTextView = (TextView) findViewById(R.id.camera_text);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -62,11 +104,25 @@ public class MapsActivity extends AppCompatActivity
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.setOnMyLocationButtonClickListener(this);
+        mMap.setOnMapClickListener(this);
+        mMap.setOnMapLongClickListener(this);
+        mMap.setOnCameraIdleListener(this);
+        mMap.setOnMarkerClickListener(this);
+        mMap.setOnCircleClickListener(this);
         enableMyLocation();
-//
-//        Marker seoul = googleMap.addMarker(new MarkerOptions().position(SEOUL).title("Seoul"));
-//        googleMap.moveCamera(CameraUpdateFactory.newLatLng(SEOUL));
-//        googleMap.animateCamera(CameraUpdateFactory.zoomTo(10));
+        addMarkersToMap();
+
+    }
+
+    private void addMarkersToMap() {
+        mBrisbane = mMap.addMarker(new MarkerOptions()
+                .position(YJ)
+                .title("한가람미술관")
+                .snippet("장사 잘되는 곳")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+
+        DraggableCircle circle = new DraggableCircle(YJ, DEFAULT_RADIUS_METERS);
+        mCircles.add(circle);
     }
 
 
@@ -86,6 +142,11 @@ public class MapsActivity extends AppCompatActivity
     }
 
     @Override
+    public void onCircleClick(Circle circle) {
+
+    }
+
+    @Override
     public boolean onMyLocationButtonClick() {
         Toast.makeText(this, "MyLocation button clicked", Toast.LENGTH_SHORT).show();
         // Return false so that we don't consume the event and the default behavior still occurs
@@ -93,6 +154,20 @@ public class MapsActivity extends AppCompatActivity
         return false;
     }
 
+    @Override
+    public void onCameraIdle() {
+        mCameraTextView.setText(mMap.getCameraPosition().toString());
+    }
+
+    @Override
+    public void onMapClick(LatLng latLng) {
+        mTapTextView.setText("tapped, point=" + latLng);
+    }
+
+    @Override
+    public void onMapLongClick(LatLng latLng) {
+        mTapTextView.setText("long pressed, point=" + latLng);
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
@@ -109,6 +184,11 @@ public class MapsActivity extends AppCompatActivity
             // Display the missing permission error dialog when the fragments resume.
             mPermissionDenied = true;
         }
+    }
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        return false;
     }
 
     @Override
