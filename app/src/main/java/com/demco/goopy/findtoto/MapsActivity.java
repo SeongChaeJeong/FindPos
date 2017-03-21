@@ -2,12 +2,14 @@ package com.demco.goopy.findtoto;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.location.Geocoder;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +23,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,6 +49,7 @@ public class MapsActivity extends AppCompatActivity
     private Marker mBrisbane;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
+    private List<Marker> markerLocations = new ArrayList<Marker>();
 
     private class DraggableCircle {
         private final Marker mCenterMarker;
@@ -166,6 +170,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onMapLongClick(LatLng latLng) {
+        addMarker(latLng);
         mTapTextView.setText("long pressed, point=" + latLng);
     }
 
@@ -208,4 +213,63 @@ public class MapsActivity extends AppCompatActivity
         PermissionUtils.PermissionDeniedDialog
                 .newInstance(true).show(getSupportFragmentManager(), "dialog");
     }
+
+
+    public void addMarker( LatLng latLng ) {
+		if( latLng == null )
+			return;
+
+		Geocoder geocoder = new Geocoder( this );
+		String address;
+		try {
+			address = geocoder.getFromLocation( latLng.latitude, latLng.longitude, 1 ).get( 0 ).getAddressLine( 0 );
+		} catch( IOException e ) {
+			address = "";
+		}
+		Log.e( "addMarker", address );
+		addMarker( 0, latLng, address );
+	}
+
+	public void addMarker( float color, LatLng latLng, String title ) {
+		if( latLng == null || mMap == null )
+			return;
+
+		MarkerOptions markerOptions = new MarkerOptions().position( latLng );
+		if( title.isEmpty() == false )
+			markerOptions.title( title );
+
+		if( color == 0 )
+			color = BitmapDescriptorFactory.HUE_RED;
+
+		markerOptions.icon( BitmapDescriptorFactory.defaultMarker( color ) );
+		Marker marker = mMap.addMarker( markerOptions );
+		if( !markerLocations.contains( marker ) )
+			markerLocations.add( marker );
+
+		marker.showInfoWindow();
+	}
+
+
+//	private void setInitialCameraPosition() {
+//		double lng, lat;
+//		float tilt, bearing, zoom;
+//
+//		SharedPreferences settings = getActivity().getSharedPreferences( EXTRAS_SHARED_PREFERENCES, 0 );
+//		lng = Double.longBitsToDouble( settings.getLong( SAVED_STATE_LONG, Double.doubleToLongBits( mLocationClient.getLastLocation().getLongitude() ) ) );
+//		lat = Double.longBitsToDouble( settings.getLong( SAVED_STATE_LAT, Double.doubleToLongBits( mLocationClient.getLastLocation().getLatitude() ) ) );
+//		zoom = settings.getFloat( SAVED_STATE_ZOOM, 17 );
+//		bearing = settings.getFloat( SAVED_STATE_BEARING, 0 );
+//		tilt = settings.getFloat( SAVED_STATE_TILT, 30 );
+//
+//		CameraPosition cameraPosition = new CameraPosition.Builder()
+//				.target( new LatLng( lat, lng) )
+//				.zoom( zoom )
+//				.bearing( bearing )
+//				.tilt( tilt )
+//				.build();
+//		if( cameraPosition == null || mMap == null )
+//			return;
+//		mMap.animateCamera( CameraUpdateFactory.newCameraPosition( cameraPosition ) );
+//	}
+
 }
