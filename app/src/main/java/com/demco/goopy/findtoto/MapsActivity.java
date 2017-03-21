@@ -63,7 +63,7 @@ public class MapsActivity extends AppCompatActivity
                     .position(center)
                     .draggable(true));
             mRadiusMarker = mMap.addMarker(new MarkerOptions()
-                    .position(YJ)
+                    .position(center)
                     .draggable(true)
                     .icon(BitmapDescriptorFactory.defaultMarker(
                             BitmapDescriptorFactory.HUE_AZURE)));
@@ -228,6 +228,9 @@ public class MapsActivity extends AppCompatActivity
 		}
 		Log.e( "addMarker", address );
 		addMarker( 0, latLng, address );
+
+        DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
+        mCircles.add(circle);
 	}
 
 	public void addMarker( float color, LatLng latLng, String title ) {
