@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 // https://github.com/googlemaps/android-samples 참고
+// https://github.com/ac-opensource/MarkerBuilder 움직이는 서클
 
 public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback,
@@ -275,27 +276,5 @@ public class MapsActivity extends AppCompatActivity
 		marker.showInfoWindow();
 	}
 
-
-//	private void setInitialCameraPosition() {
-//		double lng, lat;
-//		float tilt, bearing, zoom;
-//
-//		SharedPreferences settings = getActivity().getSharedPreferences( EXTRAS_SHARED_PREFERENCES, 0 );
-//		lng = Double.longBitsToDouble( settings.getLong( SAVED_STATE_LONG, Double.doubleToLongBits( mLocationClient.getLastLocation().getLongitude() ) ) );
-//		lat = Double.longBitsToDouble( settings.getLong( SAVED_STATE_LAT, Double.doubleToLongBits( mLocationClient.getLastLocation().getLatitude() ) ) );
-//		zoom = settings.getFloat( SAVED_STATE_ZOOM, 17 );
-//		bearing = settings.getFloat( SAVED_STATE_BEARING, 0 );
-//		tilt = settings.getFloat( SAVED_STATE_TILT, 30 );
-//
-//		CameraPosition cameraPosition = new CameraPosition.Builder()
-//				.target( new LatLng( lat, lng) )
-//				.zoom( zoom )
-//				.bearing( bearing )
-//				.tilt( tilt )
-//				.build();
-//		if( cameraPosition == null || mMap == null )
-//			return;
-//		mMap.animateCamera( CameraUpdateFactory.newCameraPosition( cameraPosition ) );
-//	}
 
 }
