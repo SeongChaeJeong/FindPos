@@ -2,6 +2,7 @@ package com.demco.goopy.findtoto;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.LocationManager;
 import android.os.Bundle;
@@ -13,6 +14,8 @@ import android.util.Log;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.aconcepcion.geofencemarkerbuilder.MarkerBuilderManagerV2;
+import com.demco.goopy.findtoto.Views.CircleView;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -46,6 +49,7 @@ public class MapsActivity extends AppCompatActivity
 
     private static final double DEFAULT_RADIUS_METERS = 200;
     private static final LatLng YJ = new LatLng(37.4799, 127.0124);
+    private MarkerBuilderManagerV2 markerBuilderManager;
     private Marker mBrisbane;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
@@ -55,6 +59,7 @@ public class MapsActivity extends AppCompatActivity
         private final Marker mCenterMarker;
         private final Marker mRadiusMarker;
         private final Circle mCircle;
+        private final CircleView mCircleView = new CircleView(getApplicationContext());
         private double mRadiusMeters;
 
         public DraggableCircle(LatLng center, double radiusMeters) {
@@ -79,6 +84,18 @@ public class MapsActivity extends AppCompatActivity
         public void setClickable(boolean clickable) {
             mCircle.setClickable(clickable);
         }
+    }
+
+    private void setUpMap() {
+        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+                .map(mMap)
+                .enabled(true)
+                .radius(200)
+                .fillColor(Color.BLUE)
+                .build();
+//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+//                .map(mMap) // required
+//                .build();
     }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
@@ -125,8 +142,14 @@ public class MapsActivity extends AppCompatActivity
                 .snippet("장사 잘되는 곳")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-        DraggableCircle circle = new DraggableCircle(YJ, DEFAULT_RADIUS_METERS);
-        mCircles.add(circle);
+        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+                .map(mMap)
+                .enabled(true)
+                .radius(200)
+                .fillColor(Color.BLUE)
+                .build();
+//        DraggableCircle circle = new DraggableCircle(YJ, DEFAULT_RADIUS_METERS);
+//        mCircles.add(circle);
     }
 
 
@@ -147,7 +170,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onCircleClick(Circle circle) {
-
+        mCameraTextView.setText("onCircleClick: " + mMap.getCameraPosition().toString());
     }
 
     @Override
@@ -160,7 +183,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onCameraIdle() {
-        mCameraTextView.setText(mMap.getCameraPosition().toString());
+//        mCameraTextView.setText(mMap.getCameraPosition().toString());
     }
 
     @Override
@@ -229,8 +252,8 @@ public class MapsActivity extends AppCompatActivity
 		Log.e( "addMarker", address );
 		addMarker( 0, latLng, address );
 
-        DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
-        mCircles.add(circle);
+//        DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
+//        mCircles.add(circle);
 	}
 
 	public void addMarker( float color, LatLng latLng, String title ) {
