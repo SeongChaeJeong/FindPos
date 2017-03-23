@@ -15,6 +15,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.aconcepcion.geofencemarkerbuilder.MarkerBuilderManagerV2;
+import com.demco.goopy.findtoto.Data.ToToPosition;
+import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Views.CircleView;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -55,6 +57,7 @@ public class MapsActivity extends AppCompatActivity
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
     private List<Marker> markerLocations = new ArrayList<Marker>();
+    private List<ToToPosition> markerPositions = new ArrayList<ToToPosition>();
 
     private class DraggableCircle {
         private final Marker mCenterMarker;
@@ -90,13 +93,10 @@ public class MapsActivity extends AppCompatActivity
     private void setUpMap() {
         markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
                 .map(mMap)
-                .enabled(true)
+                .enabled(false)
                 .radius(200)
-                .fillColor(Color.BLUE)
+                .strokeColor(Color.BLUE)
                 .build();
-//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-//                .map(mMap) // required
-//                .build();
     }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
@@ -124,7 +124,9 @@ public class MapsActivity extends AppCompatActivity
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
+        loadMarkPositions();
         mMap = googleMap;
+        setUpMap();
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnMapLongClickListener(this);
@@ -136,6 +138,10 @@ public class MapsActivity extends AppCompatActivity
 
     }
 
+    private void loadMarkPositions() {
+        FileManager.readExcelFile(markerPositions , this,"address.xls");
+    }
+
     private void addMarkersToMap() {
         mBrisbane = mMap.addMarker(new MarkerOptions()
                 .position(YJ)
@@ -143,14 +149,31 @@ public class MapsActivity extends AppCompatActivity
                 .snippet("장사 잘되는 곳")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-                .map(mMap)
-                .enabled(true)
-                .radius(200)
-                .fillColor(Color.BLUE)
-                .build();
-//        DraggableCircle circle = new DraggableCircle(YJ, DEFAULT_RADIUS_METERS);
-//        mCircles.add(circle);
+//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+//                .map(mMap)
+//                .enabled(false)
+//                .radius(200)
+//                .strokeColor(Color.RED)
+//                .build();
+
+//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+//                .map(googleMap)
+//                .enabled(isEnabled)
+//                .radius(initRadiusMetersFinal)
+//                .circleId(circleId)
+//                .strokeWidth(strokeWidth)
+//                .strokeColor(strokeColor)
+//                .fillColor(fillColor)
+//                .minRadius(minRadius)
+//                .maxRadius(maxRadius)
+//                .centerIcon(centerIcon)
+//                .centerBitmap(centerBitmap)
+//                .resizerIcon(resizerIcon)
+//                .centerOffsetHorizontal(centerOffsetHorizontal)
+//                .centerOffsetVertical(centerOffsetVertical)
+//                .build();
+        DraggableCircle circle = new DraggableCircle(YJ, DEFAULT_RADIUS_METERS);
+        mCircles.add(circle);
     }
 
 
@@ -184,18 +207,20 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onCameraIdle() {
-//        mCameraTextView.setText(mMap.getCameraPosition().toString());
+        mCameraTextView.setText(mMap.getCameraPosition().toString());
     }
 
     @Override
     public void onMapClick(LatLng latLng) {
         mTapTextView.setText("tapped, point=" + latLng);
+        markerBuilderManager.onMapClick(latLng);
     }
 
     @Override
     public void onMapLongClick(LatLng latLng) {
         addMarker(latLng);
         mTapTextView.setText("long pressed, point=" + latLng);
+        markerBuilderManager.onMapLongClick(latLng);
     }
 
     @Override
@@ -253,8 +278,8 @@ public class MapsActivity extends AppCompatActivity
 		Log.e( "addMarker", address );
 		addMarker( 0, latLng, address );
 
-//        DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
-//        mCircles.add(circle);
+        DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
+        mCircles.add(circle);
 	}
 
 	public void addMarker( float color, LatLng latLng, String title ) {

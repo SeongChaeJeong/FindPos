@@ -34,5 +34,8 @@ dependencies {
     compile 'com.google.android.gms:play-services:10.0.1'
     compile 'com.google.android.gms:play-services-maps:8.+'
     compile 'com.github.ac-opensource:MarkerBuilder:v1.0.0'
+    // https://mvnrepository.com/artifact/org.apache.poi/poi
+    compile group: 'org.apache.poi', name: 'poi', version: '3.9'
+
     testCompile 'junit:junit:4.12'
 }
