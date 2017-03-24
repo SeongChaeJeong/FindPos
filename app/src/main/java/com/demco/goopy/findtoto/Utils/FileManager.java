@@ -124,18 +124,21 @@ public class FileManager {
 
             /** We now need something to iterate through the cells.**/
             Iterator<Row> rowIter = mySheet.rowIterator();
+            // 헤더 부분
+            if(rowIter.hasNext()) {
+                HSSFRow myRow = (HSSFRow) rowIter.next();
+            }
 
             while(rowIter.hasNext()){
                 HSSFRow myRow = (HSSFRow) rowIter.next();
                 Iterator<Cell> cellIter = myRow.cellIterator();
+                int i = 0;
                 ToToPosition toToPosition = new ToToPosition();
-                if(cellIter.hasNext()) {
-                    HSSFCell myCell = (HSSFCell) cellIter.next();
-                }
                 while(cellIter.hasNext()){
                     HSSFCell myCell = (HSSFCell) cellIter.next();
-                    Log.w("FileUtils", "Cell Value: " +  myCell.toString());
-                    Toast.makeText(context, "cell Value: " + myCell.toString(), Toast.LENGTH_SHORT).show();
+                    toToPosition.rawData[i++] = myCell.toString();
+                    Log.d("FileUtils", "Cell Value: " +  myCell.toString());
+//                    Toast.makeText(context, "cell Value: " + myCell.toString(), Toast.LENGTH_SHORT).show();
                 }
                 positionList.add(toToPosition);
             }

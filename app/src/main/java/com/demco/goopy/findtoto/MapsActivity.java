@@ -1,11 +1,13 @@
 package com.demco.goopy.findtoto;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -16,6 +18,7 @@ import android.widget.Toast;
 
 import com.aconcepcion.geofencemarkerbuilder.MarkerBuilderManagerV2;
 import com.demco.goopy.findtoto.Data.ToToPosition;
+import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Views.CircleView;
 import com.google.android.gms.maps.GoogleMap;
@@ -32,6 +35,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
+import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
+import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
+
 // https://github.com/googlemaps/android-samples 참고
 // https://github.com/ac-opensource/MarkerBuilder 움직이는 서클
 
@@ -43,6 +51,7 @@ public class MapsActivity extends AppCompatActivity
         GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener, GoogleMap.OnCameraIdleListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
 
+    public static String TAG = "MapsActivity";
     private TextView mTapTextView;
     private TextView mCameraTextView;
     static final LatLng SEOUL = new LatLng(37.56, 126.97);
@@ -58,6 +67,8 @@ public class MapsActivity extends AppCompatActivity
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
     private List<Marker> markerLocations = new ArrayList<Marker>();
     private List<ToToPosition> markerPositions = new ArrayList<ToToPosition>();
+
+    private boolean isReallyStoppedByBackButton = false;
 
     private class DraggableCircle {
         private final Marker mCenterMarker;
@@ -107,6 +118,19 @@ public class MapsActivity extends AppCompatActivity
         setContentView(R.layout.activity_maps);
         mTapTextView = (TextView) findViewById(R.id.tap_text);
         mCameraTextView = (TextView) findViewById(R.id.camera_text);
+        LocationManager lm = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
+        // 위치관리자 객체를 얻어온다
+//        lm.getBestProvider(criteria, enabledOnly)
+        List<String> list = lm.getAllProviders(); // 위치제공자 모두 가져오기
+
+        String str = ""; // 출력할 문자열
+        for (int i = 0; i < list.size(); i++) {
+            str += "위치제공자 : " + list.get(i) + ", 사용가능여부 -"
+                    + lm.isProviderEnabled(list.get(i)) +"\n";
+            Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
+            Log.d(TAG, str);
+        }
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -124,8 +148,8 @@ public class MapsActivity extends AppCompatActivity
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        loadMarkPositions();
         mMap = googleMap;
+        loadMarkPositions();
         setUpMap();
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
@@ -148,6 +172,23 @@ public class MapsActivity extends AppCompatActivity
                 .title("한가람미술관")
                 .snippet("장사 잘되는 곳")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+
+        for(ToToPosition toToPosition : markerPositions) {
+            String targetName = toToPosition.rawData[NAME];
+            String targetBiz = toToPosition.rawData[BUSINESS];
+            StringBuilder sb = new StringBuilder();
+            for(int i = ADDRESS1; i <= ADDRESS4; ++i) {
+                sb.append(toToPosition.rawData[i]);
+            }
+            LatLng targetLatLng = AddressConvert.getLatLng(this, sb.toString());
+            Log.d(TAG, "주소: " + sb.toString() + ", 좌표: " + targetLatLng.toString());
+
+            mMap.addMarker(new MarkerOptions()
+                .position(targetLatLng)
+                .title(targetName)
+                .snippet(targetBiz)
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+        }
 
 //        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
 //                .map(mMap)
@@ -301,5 +342,21 @@ public class MapsActivity extends AppCompatActivity
 		marker.showInfoWindow();
 	}
 
-
+    @Override
+    public void onBackPressed() {
+        if(isReallyStoppedByBackButton) {
+            super.onBackPressed();
+        }
+        else {
+            Toast.makeText(this, "한번 더 누르면 앱이 종료됩니다", Toast.LENGTH_SHORT).show();
+            isReallyStoppedByBackButton = true;
+            Handler handler = new Handler();
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    isReallyStoppedByBackButton = false;
+                }
+            }, 2000);
+        }
+    }
 }
