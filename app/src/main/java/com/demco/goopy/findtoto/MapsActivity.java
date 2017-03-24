@@ -188,6 +188,9 @@ public class MapsActivity extends AppCompatActivity
                 .title(targetName)
                 .snippet(targetBiz)
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+
+            DraggableCircle circle = new DraggableCircle(targetLatLng, DEFAULT_RADIUS_METERS);
+            mCircles.add(circle);
         }
 
 //        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
