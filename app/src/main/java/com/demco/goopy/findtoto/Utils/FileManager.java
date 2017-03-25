@@ -6,6 +6,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.demco.goopy.findtoto.Data.ToToPosition;
+import com.demco.goopy.findtoto.R;
 
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFCellStyle;
@@ -100,12 +101,13 @@ public class FileManager {
         return success;
     }
 
-    public static void readExcelFile(List<ToToPosition> positionList, Context context, String filename) {
+    public static boolean readExcelFile(List<ToToPosition> positionList, Context context, String filename) {
 
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly())
         {
             Log.w("FileUtils", "Storage not available or read only");
-            return;
+            Toast.makeText(context, R.string.permission_not_exist, Toast.LENGTH_LONG).show();
+            return false;
         }
 
         try{
@@ -142,9 +144,13 @@ public class FileManager {
                 }
                 positionList.add(toToPosition);
             }
-        }catch (Exception e){e.printStackTrace(); }
+        }catch (Exception e){
+            Toast.makeText(context, R.string.file_not_exist, Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+            return false;
+        }
 
-        return;
+        return true;
     }
 
     public static boolean isExternalStorageReadOnly() {

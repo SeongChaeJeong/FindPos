@@ -2,6 +2,7 @@ package com.demco.goopy.findtoto;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Geocoder;
@@ -13,6 +14,10 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -52,6 +57,7 @@ public class MapsActivity extends AppCompatActivity
         ActivityCompat.OnRequestPermissionsResultCallback {
 
     public static String TAG = "MapsActivity";
+    private ImageView mSearchImageView;
     private TextView mTapTextView;
     private TextView mCameraTextView;
     static final LatLng SEOUL = new LatLng(37.56, 126.97);
@@ -63,6 +69,12 @@ public class MapsActivity extends AppCompatActivity
     private static final LatLng YJ = new LatLng(37.4799, 127.0124);
     private MarkerBuilderManagerV2 markerBuilderManager;
     private Marker mBrisbane;
+
+
+    private int REQUEST_SEARCH = 0;
+    private int REQUEST_MAP_CLICK = 1;
+    public final double clickLatitude = 37.566660;
+    public final double clickLongitude = 126.978418;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
     private List<Marker> markerLocations = new ArrayList<Marker>();
@@ -115,7 +127,10 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+//        requestWindowFeature(Window.FEATURE_NO_TITLE);
+//        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_maps);
+        mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
         mTapTextView = (TextView) findViewById(R.id.tap_text);
         mCameraTextView = (TextView) findViewById(R.id.camera_text);
         LocationManager lm = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
@@ -130,6 +145,17 @@ public class MapsActivity extends AppCompatActivity
             Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
             Log.d(TAG, str);
         }
+
+        mSearchImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
+                intent.putExtra(PositionMangerActivity.ROW_POS, clickLatitude);
+                intent.putExtra(PositionMangerActivity.CUL_POS, clickLongitude);
+                startActivityForResult(intent, REQUEST_SEARCH);
+
+            }
+        });
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -188,6 +214,9 @@ public class MapsActivity extends AppCompatActivity
                 .title(targetName)
                 .snippet(targetBiz)
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+
+            DraggableCircle circle = new DraggableCircle(targetLatLng, DEFAULT_RADIUS_METERS);
+            mCircles.add(circle);
         }
 
 //        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)

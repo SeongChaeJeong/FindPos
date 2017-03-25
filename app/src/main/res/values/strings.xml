@@ -1,5 +1,10 @@
 <resources>
     <string name="app_name">FindToTo</string>
+    <string name="file_not_exist">저장된 목록파일이 없습니다.</string>
+    <string name="permission_not_exist">스토리지 접근권한이 없습니다.</string>
+    <string name="market_title_label">상호</string>
+    <string name="market_category_label">업태</string>
+    <string name="address_label">주소</string>
     <string name="title_activity_maps">ToTo</string>
     <string name="demo_title">Google Maps API Demos</string>
     <string name="legal_info">Legal Info</string>
