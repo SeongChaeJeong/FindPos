@@ -13,6 +13,7 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.Window;
@@ -22,6 +23,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.aconcepcion.geofencemarkerbuilder.MarkerBuilderManagerV2;
+import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
@@ -58,8 +60,8 @@ public class MapsActivity extends AppCompatActivity
 
     public static String TAG = "MapsActivity";
     private ImageView mSearchImageView;
-    private TextView mTapTextView;
-    private TextView mCameraTextView;
+//    private TextView mTapTextView;
+//    private TextView mCameraTextView;
     static final LatLng SEOUL = new LatLng(37.56, 126.97);
     private GoogleMap mMap;
     private boolean mPermissionDenied = false;
@@ -73,12 +75,12 @@ public class MapsActivity extends AppCompatActivity
 
     private int REQUEST_SEARCH = 0;
     private int REQUEST_MAP_CLICK = 1;
-    public final double clickLatitude = 37.566660;
-    public final double clickLongitude = 126.978418;
+    public static final double defaultLatitude = 37.566660;
+    public static final double defaultLongitude = 126.978418;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
     private List<Marker> markerLocations = new ArrayList<Marker>();
-    private List<ToToPosition> markerPositions = new ArrayList<ToToPosition>();
+    private List<ToToPosition> markerPositions = null;
 
     private boolean isReallyStoppedByBackButton = false;
 
@@ -131,8 +133,8 @@ public class MapsActivity extends AppCompatActivity
 //        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_maps);
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
-        mTapTextView = (TextView) findViewById(R.id.tap_text);
-        mCameraTextView = (TextView) findViewById(R.id.camera_text);
+//        mTapTextView = (TextView) findViewById(R.id.tap_text);
+//        mCameraTextView = (TextView) findViewById(R.id.camera_text);
         LocationManager lm = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
         // 위치관리자 객체를 얻어온다
 //        lm.getBestProvider(criteria, enabledOnly)
@@ -150,10 +152,9 @@ public class MapsActivity extends AppCompatActivity
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-                intent.putExtra(PositionMangerActivity.ROW_POS, clickLatitude);
-                intent.putExtra(PositionMangerActivity.CUL_POS, clickLongitude);
+//                intent.putExtra(PositionMangerActivity.ROW_POS, defaultLatitude);
+//                intent.putExtra(PositionMangerActivity.CUL_POS, defaultLongitude);
                 startActivityForResult(intent, REQUEST_SEARCH);
-
             }
         });
 
@@ -189,7 +190,7 @@ public class MapsActivity extends AppCompatActivity
     }
 
     private void loadMarkPositions() {
-        FileManager.readExcelFile(markerPositions , this,"address.xls");
+        FileManager.readExcelFile(this,"address.xls");
     }
 
     private void addMarkersToMap() {
@@ -199,6 +200,7 @@ public class MapsActivity extends AppCompatActivity
                 .snippet("장사 잘되는 곳")
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
+        markerPositions = PositionDataSingleton.getInstance().getMarkerPositions();
         for(ToToPosition toToPosition : markerPositions) {
             String targetName = toToPosition.rawData[NAME];
             String targetBiz = toToPosition.rawData[BUSINESS];
@@ -206,9 +208,15 @@ public class MapsActivity extends AppCompatActivity
             for(int i = ADDRESS1; i <= ADDRESS4; ++i) {
                 sb.append(toToPosition.rawData[i]);
             }
-            LatLng targetLatLng = AddressConvert.getLatLng(this, sb.toString());
-            Log.d(TAG, "주소: " + sb.toString() + ", 좌표: " + targetLatLng.toString());
-
+            toToPosition.addressData = sb.toString();
+            if(TextUtils.isEmpty(toToPosition.addressData)) {
+                return;
+            }
+            LatLng targetLatLng = AddressConvert.getLatLng(this, toToPosition.addressData);
+            if(targetLatLng == null) {
+                targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+            }
+//            Log.d(TAG, "주소: " + sb.toString() + ", 좌표: " + targetLatLng.toString());
             mMap.addMarker(new MarkerOptions()
                 .position(targetLatLng)
                 .title(targetName)
@@ -264,7 +272,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onCircleClick(Circle circle) {
-        mCameraTextView.setText("onCircleClick: " + mMap.getCameraPosition().toString());
+//        mCameraTextView.setText("onCircleClick: " + mMap.getCameraPosition().toString());
     }
 
     @Override
@@ -277,20 +285,30 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onCameraIdle() {
-        mCameraTextView.setText(mMap.getCameraPosition().toString());
+//        mCameraTextView.setText(mMap.getCameraPosition().toString());
     }
 
     @Override
     public void onMapClick(LatLng latLng) {
-        mTapTextView.setText("tapped, point=" + latLng);
+//        mTapTextView.setText("tapped, point=" + latLng);
         markerBuilderManager.onMapClick(latLng);
     }
 
     @Override
     public void onMapLongClick(LatLng latLng) {
+
+        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
+        intent.putExtra(PositionMangerActivity.LATITUDE_POS, latLng.latitude);
+        intent.putExtra(PositionMangerActivity.LONGITUDE_POS, latLng.longitude);
+        startActivityForResult(intent, REQUEST_SEARCH);
         addMarker(latLng);
-        mTapTextView.setText("long pressed, point=" + latLng);
+//        mTapTextView.setText("long pressed, point=" + latLng);
         markerBuilderManager.onMapLongClick(latLng);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override

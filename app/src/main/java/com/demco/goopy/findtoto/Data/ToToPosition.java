@@ -18,4 +18,5 @@ public class ToToPosition {
     public static int LAST_INDEX = 10;
 
     public String[] rawData = new String[LAST_INDEX];
+    public String addressData = null;
 }

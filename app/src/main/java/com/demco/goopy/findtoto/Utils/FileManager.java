@@ -5,6 +5,7 @@ import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.R;
 
@@ -101,7 +102,7 @@ public class FileManager {
         return success;
     }
 
-    public static boolean readExcelFile(List<ToToPosition> positionList, Context context, String filename) {
+    public static boolean readExcelFile(Context context, String filename) {
 
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly())
         {
@@ -109,6 +110,8 @@ public class FileManager {
             Toast.makeText(context, R.string.permission_not_exist, Toast.LENGTH_LONG).show();
             return false;
         }
+
+        List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
 
         try{
             // Creating Input Stream
@@ -131,6 +134,7 @@ public class FileManager {
                 HSSFRow myRow = (HSSFRow) rowIter.next();
             }
 
+            positionList.clear();
             while(rowIter.hasNext()){
                 HSSFRow myRow = (HSSFRow) rowIter.next();
                 Iterator<Cell> cellIter = myRow.cellIterator();
