@@ -1,12 +1,15 @@
 package com.demco.goopy.findtoto;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -25,6 +28,7 @@ import android.widget.Toast;
 import com.aconcepcion.geofencemarkerbuilder.MarkerBuilderManagerV2;
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
+import com.demco.goopy.findtoto.System.GPS_Service;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Views.CircleView;
@@ -66,6 +70,7 @@ public class MapsActivity extends AppCompatActivity
     private GoogleMap mMap;
     private boolean mPermissionDenied = false;
     private LocationManager manager;
+    private BroadcastReceiver broadcastReceiver;
 
     private static final double DEFAULT_RADIUS_METERS = 200;
     private static final LatLng YJ = new LatLng(37.4799, 127.0124);
@@ -129,15 +134,12 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-//        requestWindowFeature(Window.FEATURE_NO_TITLE);
-//        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_maps);
+        if(!runtime_permissions()) {
+            startGPSService();
+        }
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
-//        mTapTextView = (TextView) findViewById(R.id.tap_text);
-//        mCameraTextView = (TextView) findViewById(R.id.camera_text);
         LocationManager lm = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
-        // 위치관리자 객체를 얻어온다
-//        lm.getBestProvider(criteria, enabledOnly)
         List<String> list = lm.getAllProviders(); // 위치제공자 모두 가져오기
 
         String str = ""; // 출력할 문자열
@@ -152,8 +154,6 @@ public class MapsActivity extends AppCompatActivity
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-//                intent.putExtra(PositionMangerActivity.ROW_POS, defaultLatitude);
-//                intent.putExtra(PositionMangerActivity.CUL_POS, defaultLongitude);
                 startActivityForResult(intent, REQUEST_SEARCH);
             }
         });
@@ -162,6 +162,30 @@ public class MapsActivity extends AppCompatActivity
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if(broadcastReceiver == null){
+            broadcastReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String coordinate = (String)intent.getExtras().get("coordinates");
+                    Toast.makeText(MapsActivity.this, coordinate, Toast.LENGTH_LONG).show();
+//                    textView.append("\n" +intent.getExtras().get("coordinates"));
+                }
+            };
+        }
+        registerReceiver(broadcastReceiver,new IntentFilter("location_update"));
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if(broadcastReceiver != null){
+            unregisterReceiver(broadcastReceiver);
+        }
     }
 
     /**
@@ -186,7 +210,11 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnCircleClickListener(this);
         enableMyLocation();
         addMarkersToMap();
+    }
 
+    private void startGPSService() {
+        Intent i = new Intent(getApplicationContext(),GPS_Service.class);
+        startService(i);
     }
 
     private void loadMarkPositions() {
@@ -266,7 +294,7 @@ public class MapsActivity extends AppCompatActivity
                     Manifest.permission.ACCESS_FINE_LOCATION, true);
         } else if (mMap != null) {
             // Access to the location has been granted to the app.
-            mMap.setMyLocationEnabled(true);
+            //mMap.setMyLocationEnabled(true);
         }
     }
 
@@ -314,18 +342,27 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-        if (requestCode != LOCATION_PERMISSION_REQUEST_CODE) {
-            return;
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode == 100){
+            if( grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED){
+                startGPSService();
+            }else {
+                runtime_permissions();
+            }
         }
-
-        if (PermissionUtils.isPermissionGranted(permissions, grantResults,
-                Manifest.permission.ACCESS_FINE_LOCATION)) {
-            // Enable the my location layer if the permission has been granted.
-            enableMyLocation();
-        } else {
-            // Display the missing permission error dialog when the fragments resume.
-            mPermissionDenied = true;
-        }
+//        if (requestCode != LOCATION_PERMISSION_REQUEST_CODE) {
+//            return;
+//        }
+//        if (PermissionUtils.isPermissionGranted(permissions, grantResults,
+//                Manifest.permission.ACCESS_FINE_LOCATION)) {
+//            // Enable the my location layer if the permission has been granted.
+//            startGPSService();
+////            enableMyLocation();
+//        } else {
+//            // Display the missing permission error dialog when the fragments resume.
+//            mPermissionDenied = true;
+//            runtime_permissions();
+//        }
     }
 
     @Override
@@ -405,5 +442,16 @@ public class MapsActivity extends AppCompatActivity
                 }
             }, 2000);
         }
+    }
+
+
+    private boolean runtime_permissions() {
+        if(Build.VERSION.SDK_INT >= 23 &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},100);
+            return true;
+        }
+        return false;
     }
 }

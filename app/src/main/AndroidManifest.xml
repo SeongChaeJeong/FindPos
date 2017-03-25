@@ -46,6 +46,8 @@
         </activity>
 
         <activity android:name=".PositionMangerActivity"/>
+
+        <service android:name=".System.GPS_Service"/>
     </application>
 
 </manifest>
