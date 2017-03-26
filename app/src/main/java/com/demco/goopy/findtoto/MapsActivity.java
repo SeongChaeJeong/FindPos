@@ -11,7 +11,6 @@ import android.location.Geocoder;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -19,23 +18,25 @@ import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
-import android.view.Window;
-import android.view.WindowManager;
 import android.widget.ImageView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.aconcepcion.geofencemarkerbuilder.MarkerBuilderManagerV2;
+import com.afollestad.materialdialogs.DialogAction;
+import com.afollestad.materialdialogs.MaterialDialog;
+import com.demco.goopy.findtoto.Data.GpsInfo;
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.System.GPS_Service;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Views.CircleView;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -50,6 +51,8 @@ import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
 import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
 import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
+import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
+import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
 
 // https://github.com/googlemaps/android-samples 참고
 // https://github.com/ac-opensource/MarkerBuilder 움직이는 서클
@@ -64,19 +67,18 @@ public class MapsActivity extends AppCompatActivity
 
     public static String TAG = "MapsActivity";
     private ImageView mSearchImageView;
-//    private TextView mTapTextView;
-//    private TextView mCameraTextView;
-    static final LatLng SEOUL = new LatLng(37.56, 126.97);
+    private ImageView mCloseImageView;
+    private ImageView mCurrentImageView;
+    private ImageView mGpsOffImageView;
     private GoogleMap mMap;
     private boolean mPermissionDenied = false;
     private LocationManager manager;
     private BroadcastReceiver broadcastReceiver;
 
+    private static final float DEFAULT_ZOOM = 14.0f;
     private static final double DEFAULT_RADIUS_METERS = 200;
     private static final LatLng YJ = new LatLng(37.4799, 127.0124);
     private MarkerBuilderManagerV2 markerBuilderManager;
-    private Marker mBrisbane;
-
 
     private int REQUEST_SEARCH = 0;
     private int REQUEST_MAP_CLICK = 1;
@@ -86,8 +88,6 @@ public class MapsActivity extends AppCompatActivity
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
     private List<Marker> markerLocations = new ArrayList<Marker>();
     private List<ToToPosition> markerPositions = null;
-
-    private boolean isReallyStoppedByBackButton = false;
 
     private class DraggableCircle {
         private final Marker mCenterMarker;
@@ -116,17 +116,36 @@ public class MapsActivity extends AppCompatActivity
         }
 
         public void setClickable(boolean clickable) {
+            Toast.makeText(MapsActivity.this, "setClickable", 0).show();
             mCircle.setClickable(clickable);
         }
     }
 
-    private void setUpMap() {
+    private void setUpMyPostionMark() {
         markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
                 .map(mMap)
-                .enabled(false)
+                .enabled(true)
                 .radius(200)
                 .strokeColor(Color.BLUE)
+                .centerIcon(R.drawable.ic_person_pin_circle)
                 .build();
+
+//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+//                .map(googleMap)
+//                .enabled(isEnabled)
+//                .radius(initRadiusMetersFinal)
+//                .circleId(circleId)
+//                .strokeWidth(strokeWidth)
+//                .strokeColor(strokeColor)
+//                .fillColor(fillColor)
+//                .minRadius(minRadius)
+//                .maxRadius(maxRadius)
+//                .centerIcon(centerIcon)
+//                .centerBitmap(centerBitmap)
+//                .resizerIcon(resizerIcon)
+//                .centerOffsetHorizontal(centerOffsetHorizontal)
+//                .centerOffsetVertical(centerOffsetVertical)
+//                .build();
     }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
@@ -135,20 +154,13 @@ public class MapsActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-        if(!runtime_permissions()) {
+        if(false == runtime_permissions()) {
             startGPSService();
         }
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
-        LocationManager lm = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
-        List<String> list = lm.getAllProviders(); // 위치제공자 모두 가져오기
-
-        String str = ""; // 출력할 문자열
-        for (int i = 0; i < list.size(); i++) {
-            str += "위치제공자 : " + list.get(i) + ", 사용가능여부 -"
-                    + lm.isProviderEnabled(list.get(i)) +"\n";
-            Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
-            Log.d(TAG, str);
-        }
+        mCurrentImageView= (ImageView) findViewById(R.id.gps_current);
+        mCloseImageView = (ImageView) findViewById(R.id.app_close);
+        mGpsOffImageView = (ImageView) findViewById(R.id.gps_off);
 
         mSearchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -158,7 +170,46 @@ public class MapsActivity extends AppCompatActivity
             }
         });
 
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        mCurrentImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                getCurrentGPSInfo();
+            }
+        });
+
+        mCloseImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new MaterialDialog.Builder(MapsActivity.this)
+                        .content(R.string.close_content)
+                        .positiveText(R.string.agree)
+                        .negativeText(R.string.disagree)
+                        .backgroundColorRes(R.color.white)
+                        .contentColorRes(R.color.black)
+                        .onPositive(new MaterialDialog.SingleButtonCallback() {
+                            @Override
+                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                                finish();
+                            }
+                        })
+                        .onNegative(new MaterialDialog.SingleButtonCallback() {
+                            @Override
+                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                            }
+                        })
+                        .show();
+            }
+        });
+
+        // 추후에 자동화 할때 필요
+        mGpsOffImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(getApplicationContext(),GPS_Service.class);
+                stopService(i);
+            }
+        });
+
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
@@ -171,13 +222,14 @@ public class MapsActivity extends AppCompatActivity
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    String coordinate = (String)intent.getExtras().get("coordinates");
-                    Toast.makeText(MapsActivity.this, coordinate, Toast.LENGTH_LONG).show();
-//                    textView.append("\n" +intent.getExtras().get("coordinates"));
+                    double lantitute = (double)intent.getExtras().get(LATITUDE_POS);
+                    double longitute = (double)intent.getExtras().get(LONGITUDE_POS);
+                    markerBuilderManager.onMapClick(new LatLng(lantitute,longitute));
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(lantitute,longitute)));
                 }
             };
         }
-        registerReceiver(broadcastReceiver,new IntentFilter("location_update"));
+        registerReceiver(broadcastReceiver, new IntentFilter("location_update"));
     }
 
     @Override
@@ -200,8 +252,6 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        loadMarkPositions();
-        setUpMap();
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnMapLongClickListener(this);
@@ -209,7 +259,36 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMarkerClickListener(this);
         mMap.setOnCircleClickListener(this);
         enableMyLocation();
-        addMarkersToMap();
+        setUpMyPostionMark();
+        getCurrentGPSInfo();
+        loadMarkPositions();
+        addLoadMarkersToMap();
+    }
+
+    private void getCurrentGPSInfo() {
+         GpsInfo gps = new GpsInfo(MapsActivity.this);
+        // GPS 사용유무 가져오기
+        if (gps.isGetLocation()) {
+            double latitude = gps.getLatitude();
+            double longitude = gps.getLongitude();
+            // Creating a LatLng object for the current location
+            LatLng latLng = new LatLng(latitude, longitude);
+            // Showing the current location in Google Map
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+            // Map 을 zoom 합니다.
+            mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
+            // 마커 설정.
+//            MarkerOptions optFirst = new MarkerOptions();
+//            optFirst.position(latLng);// 위도 • 경도
+//            optFirst.title("Current Position");// 제목 미리보기
+//            optFirst.snippet("Snippet");
+//            optFirst.icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_audiotrack));
+//            mMap.addMarker(optFirst).showInfoWindow();
+            markerBuilderManager.onMapClick(latLng);
+        }
+        else {
+            Toast.makeText(this, R.string.gps_off, Toast.LENGTH_LONG).show();
+        }
     }
 
     private void startGPSService() {
@@ -221,13 +300,7 @@ public class MapsActivity extends AppCompatActivity
         FileManager.readExcelFile(this,"address.xls");
     }
 
-    private void addMarkersToMap() {
-        mBrisbane = mMap.addMarker(new MarkerOptions()
-                .position(YJ)
-                .title("한가람미술관")
-                .snippet("장사 잘되는 곳")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
-
+    private void addLoadMarkersToMap() {
         markerPositions = PositionDataSingleton.getInstance().getMarkerPositions();
         for(ToToPosition toToPosition : markerPositions) {
             String targetName = toToPosition.rawData[NAME];
@@ -235,6 +308,7 @@ public class MapsActivity extends AppCompatActivity
             StringBuilder sb = new StringBuilder();
             for(int i = ADDRESS1; i <= ADDRESS4; ++i) {
                 sb.append(toToPosition.rawData[i]);
+                sb.append(" ");
             }
             toToPosition.addressData = sb.toString();
             if(TextUtils.isEmpty(toToPosition.addressData)) {
@@ -244,42 +318,16 @@ public class MapsActivity extends AppCompatActivity
             if(targetLatLng == null) {
                 targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
             }
-//            Log.d(TAG, "주소: " + sb.toString() + ", 좌표: " + targetLatLng.toString());
+
             mMap.addMarker(new MarkerOptions()
-                .position(targetLatLng)
-                .title(targetName)
-                .snippet(targetBiz)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+                    .position(targetLatLng)
+                    .title(targetName)
+                    .snippet(targetBiz)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
             DraggableCircle circle = new DraggableCircle(targetLatLng, DEFAULT_RADIUS_METERS);
             mCircles.add(circle);
         }
-
-//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-//                .map(mMap)
-//                .enabled(false)
-//                .radius(200)
-//                .strokeColor(Color.RED)
-//                .build();
-
-//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-//                .map(googleMap)
-//                .enabled(isEnabled)
-//                .radius(initRadiusMetersFinal)
-//                .circleId(circleId)
-//                .strokeWidth(strokeWidth)
-//                .strokeColor(strokeColor)
-//                .fillColor(fillColor)
-//                .minRadius(minRadius)
-//                .maxRadius(maxRadius)
-//                .centerIcon(centerIcon)
-//                .centerBitmap(centerBitmap)
-//                .resizerIcon(resizerIcon)
-//                .centerOffsetHorizontal(centerOffsetHorizontal)
-//                .centerOffsetVertical(centerOffsetVertical)
-//                .build();
-        DraggableCircle circle = new DraggableCircle(YJ, DEFAULT_RADIUS_METERS);
-        mCircles.add(circle);
     }
 
 
@@ -294,7 +342,7 @@ public class MapsActivity extends AppCompatActivity
                     Manifest.permission.ACCESS_FINE_LOCATION, true);
         } else if (mMap != null) {
             // Access to the location has been granted to the app.
-            //mMap.setMyLocationEnabled(true);
+//            mMap.setMyLocationEnabled(true);
         }
     }
 
@@ -318,18 +366,17 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onMapClick(LatLng latLng) {
+        addMarker(latLng, false);
 //        mTapTextView.setText("tapped, point=" + latLng);
-        markerBuilderManager.onMapClick(latLng);
+//        markerBuilderManager.onMapClick(latLng);
     }
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-
         Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-        intent.putExtra(PositionMangerActivity.LATITUDE_POS, latLng.latitude);
-        intent.putExtra(PositionMangerActivity.LONGITUDE_POS, latLng.longitude);
+        intent.putExtra(LATITUDE_POS, latLng.latitude);
+        intent.putExtra(LONGITUDE_POS, latLng.longitude);
         startActivityForResult(intent, REQUEST_SEARCH);
-        addMarker(latLng);
 //        mTapTextView.setText("long pressed, point=" + latLng);
         markerBuilderManager.onMapLongClick(latLng);
     }
@@ -389,61 +436,46 @@ public class MapsActivity extends AppCompatActivity
     }
 
 
-    public void addMarker( LatLng latLng ) {
-		if( latLng == null )
-			return;
+    public void addMarker( LatLng latLng , boolean insert) {
+        if( latLng == null )
+            return;
 
-		Geocoder geocoder = new Geocoder( this );
-		String address;
-		try {
-			address = geocoder.getFromLocation( latLng.latitude, latLng.longitude, 1 ).get( 0 ).getAddressLine( 0 );
-		} catch( IOException e ) {
-			address = "";
-		}
-		Log.e( "addMarker", address );
-		addMarker( 0, latLng, address );
+        Geocoder geocoder = new Geocoder( this );
+        String address;
+        try {
+            address = geocoder.getFromLocation( latLng.latitude, latLng.longitude, 1 ).get( 0 ).getAddressLine( 0 );
+        } catch( IOException e ) {
+            address = "";
+        }
+        Log.e( "addMarker", address );
+        addMarker( 0, latLng, address );
 
         DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
         mCircles.add(circle);
-	}
+    }
 
-	public void addMarker( float color, LatLng latLng, String title ) {
-		if( latLng == null || mMap == null )
-			return;
+    public void addMarker( float color, LatLng latLng, String title ) {
+        if( latLng == null || mMap == null )
+            return;
 
-		MarkerOptions markerOptions = new MarkerOptions().position( latLng );
-		if( title.isEmpty() == false )
-			markerOptions.title( title );
+        MarkerOptions markerOptions = new MarkerOptions().position( latLng );
+        if( title.isEmpty() == false )
+            markerOptions.title( title );
 
-		if( color == 0 )
-			color = BitmapDescriptorFactory.HUE_RED;
+        if( color == 0 )
+            color = BitmapDescriptorFactory.HUE_RED;
 
-		markerOptions.icon( BitmapDescriptorFactory.defaultMarker( color ) );
-		Marker marker = mMap.addMarker( markerOptions );
-		if( !markerLocations.contains( marker ) )
-			markerLocations.add( marker );
-
-		marker.showInfoWindow();
-	}
+        markerOptions.icon( BitmapDescriptorFactory.defaultMarker( color ) );
+        Marker marker = mMap.addMarker( markerOptions );
+        if( false == markerLocations.contains( marker ) )
+            markerLocations.add( marker );
+        marker.showInfoWindow();
+    }
 
     @Override
     public void onBackPressed() {
-        if(isReallyStoppedByBackButton) {
-            super.onBackPressed();
-        }
-        else {
-            Toast.makeText(this, "한번 더 누르면 앱이 종료됩니다", Toast.LENGTH_SHORT).show();
-            isReallyStoppedByBackButton = true;
-            Handler handler = new Handler();
-            handler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    isReallyStoppedByBackButton = false;
-                }
-            }, 2000);
-        }
+        return;
     }
-
 
     private boolean runtime_permissions() {
         if(Build.VERSION.SDK_INT >= 23 &&

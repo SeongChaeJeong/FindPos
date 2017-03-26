@@ -7,7 +7,7 @@
     <ImageView
         android:src="@drawable/ic_error"
         android:id="@+id/error_image"
-        android:visibility="visible"
+        android:visibility="gone"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
@@ -31,8 +31,7 @@
                 android:textAppearance="@style/TextAppearance.AppCompat.Headline"
                 android:textColor="#000000"
                 android:text="@string/market_title_label"
-                android:textSize="@dimen/title_label"
-                android:textStyle="bold"/>
+                android:textSize="@dimen/title_label"/>
 
             <TextView
                 android:id="@+id/market_title"
@@ -41,7 +40,8 @@
                 android:layout_centerVertical="true"
                 android:layout_marginLeft="5dp"
                 android:textColor="#000000"
-                android:textSize="@dimen/title_size"/>
+                android:textSize="@dimen/title_size"
+                android:textStyle="bold"/>
 
             <TextView
                 android:id="@+id/market_category_label"
@@ -51,8 +51,7 @@
                 android:textAppearance="@style/TextAppearance.AppCompat.Headline"
                 android:textColor="#000000"
                 android:text="@string/market_category_label"
-                android:textSize="@dimen/title_label"
-                android:textStyle="bold"/>
+                android:textSize="@dimen/title_label"/>
 
             <TextView
                 android:id="@+id/market_category"
@@ -61,7 +60,8 @@
                 android:layout_centerVertical="true"
                 android:layout_marginLeft="5dp"
                 android:textColor="#000000"
-                android:textSize="@dimen/title_size"/>
+                android:textSize="@dimen/title_size"
+                android:textStyle="bold"/>
         </LinearLayout>
 
         <LinearLayout
@@ -80,8 +80,7 @@
                 android:textAppearance="@style/TextAppearance.AppCompat.Headline"
                 android:textColor="#000000"
                 android:text="@string/address_label"
-                android:textSize="@dimen/title_label"
-                android:textStyle="bold"/>
+                android:textSize="@dimen/title_label"/>
 
             <TextView
                 android:id="@+id/market_address"
@@ -91,7 +90,8 @@
                 android:layout_centerVertical="true"
                 android:layout_marginLeft="5dp"
                 android:textColor="#000000"
-                android:textSize="@dimen/title_size"/>
+                android:textSize="@dimen/title_size"
+                android:textStyle="bold"/>
 
         </LinearLayout>
 

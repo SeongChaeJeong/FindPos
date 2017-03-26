@@ -3,11 +3,8 @@ package com.demco.goopy.findtoto;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
-import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
@@ -67,8 +64,6 @@ public class PositionMangerActivity extends Activity{
         dataset = PositionDataSingleton.getInstance().getMarkerPositions();
         mAdapter = new PositionAdapter(this, dataset);
         mRecyclerView.setAdapter(mAdapter);
-//        Drawable seperator = ContextCompat.getDrawable(this, R.drawable.divider_sample);
-//        mRecyclerView.addItemDecoration(new DividerItemDecoration(this, DividerItemDecoration.VERTICAL));
     }
 
     public class PositionAdapter extends RecyclerView.Adapter<PositionAdapter.CustomViewHolder> {
