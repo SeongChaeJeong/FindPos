@@ -41,6 +41,14 @@ public class PositionMangerActivity extends Activity{
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        dataset = PositionDataSingleton.getInstance().getMarkerPositions();
+        if(dataset.isEmpty()) {
+            setContentView(R.layout.empty_list_view);
+            String filePath = getExternalFilesDir(null) + "address.xls" + getString(R.string.check_file);
+            ((TextView)findViewById(R.id.empty_alert)).setText(filePath);
+            return;
+        }
+
         setContentView(R.layout.activity_position_list);
         Intent dataIntent = getIntent();
         if(null != dataIntent) {
@@ -61,7 +69,6 @@ public class PositionMangerActivity extends Activity{
         mRecyclerView.setLayoutManager(mLayoutManager);
 
         // specify an adapter (see also next example)
-        dataset = PositionDataSingleton.getInstance().getMarkerPositions();
         mAdapter = new PositionAdapter(this, dataset);
         mRecyclerView.setAdapter(mAdapter);
     }
@@ -94,16 +101,6 @@ public class PositionMangerActivity extends Activity{
             if(TextUtils.isEmpty(toToPosition.addressData) == false) {
                 customViewHolder.marketAddress.setText(toToPosition.addressData);
             }
-
-            //Render image using Picasso library
-//            if (!TextUtils.isEmpty(feedItem.getThumbnail())) {
-//                Picasso.with(mContext).load(feedItem.getThumbnail())
-//                        .error(R.drawable.placeholder)
-//                        .placeholder(R.drawable.placeholder)
-//                        .into(customViewHolder.imageView);
-//            }
-            //Setting text view title
-//            customViewHolder.textView.setText(Html.fromHtml(feedItem.getTitle()));
         }
 
         @Override
