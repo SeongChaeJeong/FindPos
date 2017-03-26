@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
+    android:focusable="true"
+    android:focusableInTouchMode="true"
     android:layout_height="match_parent">
 
     <RelativeLayout
@@ -88,7 +90,6 @@
             android:id="@+id/address_layout"
             android:layout_below="@id/market_title_layout"
             android:layout_marginLeft="15dp"
-            android:layout_marginBottom="15dp"
             android:orientation="horizontal"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content">
@@ -150,12 +151,12 @@
                 android:text="@string/position_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
-
         </LinearLayout>
     </RelativeLayout>
 
     <View
         android:background="@color/cast_expanded_controller_ad_label_background_color"
+        android:layout_marginBottom="5dp"
         android:layout_width="match_parent"
         android:layout_height="2dp"/>
 

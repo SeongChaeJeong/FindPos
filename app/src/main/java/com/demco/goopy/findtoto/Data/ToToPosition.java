@@ -1,5 +1,8 @@
 package com.demco.goopy.findtoto.Data;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Created by goopy on 2017-03-23.
  */
@@ -18,6 +21,7 @@ public class ToToPosition {
     public static int LAST_INDEX = 10;
 
     public int uniqueId = 0;
+    public List<String> addressList = new ArrayList<>();
     public String[] rawData = new String[LAST_INDEX];
     public String addressData = null;
     public ToToPosition() {

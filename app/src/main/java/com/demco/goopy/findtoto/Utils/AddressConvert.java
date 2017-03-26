@@ -48,7 +48,7 @@ public class AddressConvert {
      * @param lng
      * @return 주소
      */
-    public static String getAddress(Context mContext,double lat, double lng) {
+    public static String getAddress(Context mContext, double lat, double lng) {
         String nowAddress ="현재 위치를 확인 할 수 없습니다.";
         Geocoder geocoder = new Geocoder(mContext, Locale.KOREA);
         List <Address> address;

@@ -24,6 +24,7 @@ import android.widget.Toast;
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
+import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Utils.KoreanTextMatch;
 import com.demco.goopy.findtoto.Utils.KoreanTextMatcher;
 import com.google.android.gms.maps.model.LatLng;
@@ -33,6 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
 import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
 import static com.demco.goopy.findtoto.Data.ToToPosition.LAST_INDEX;
 import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
@@ -102,6 +104,11 @@ public class PositionMangerActivity extends Activity
         titleText = (EditText)findViewById(R.id.edit_title);
         bizText = (EditText)findViewById(R.id.market_category);
         addressText = (EditText)findViewById(R.id.market_address);
+
+        if(focusLongitude != defaultLongitude && focusLatitude != defaultLatitude) {
+            String targetAddress = AddressConvert.getAddress(this, focusLatitude, focusLongitude);
+            addressText.setText(targetAddress);
+        }
 
         s = (Spinner) findViewById(R.id.biz_category_spinner);
         spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, bizCategoryList);
@@ -178,13 +185,16 @@ public class PositionMangerActivity extends Activity
                 break;
             case R.id.add_btn:
                 ToToPosition newPosition = new ToToPosition();
-                newPosition.addressData = addressText.getText().toString();
                 // 토큰해서 각각주소에 넣기
-                String[] splitAddress = TextUtils.split(selectedItem.addressData, " ");
-                int maxIndex = splitAddress.length > LAST_INDEX ? LAST_INDEX : splitAddress.length;
-                for(int i = 0; i < maxIndex; ++i) {
-                    selectedItem.rawData[ADDRESS1 + i] = splitAddress[i];
+                String[] splitAddress = TextUtils.split(addressText.getText().toString(), " ");
+                newPosition.addressList.clear();
+                for(int i = 0; i < splitAddress.length; ++i) {
+                    if(getString(R.string.korea).compareToIgnoreCase(splitAddress[i]) == 0) {
+                        continue;
+                    }
+                    newPosition.addressList.add(splitAddress[i]);
                 }
+                newPosition.addressData = TextUtils.join(" ", newPosition.addressList);
                 newPosition.rawData[NAME] = titleText.getText().toString();
                 newPosition.rawData[BUSINESS] = bizText.getText().toString();
 
@@ -193,25 +203,31 @@ public class PositionMangerActivity extends Activity
                     bizCategoryList.add(bizCategory);
                 }
 
+                newPosition.uniqueId = ++FileManager.UNIQUE_INDEX;
                 dataset.add(newPosition);
                 mAdapter.notifyDataSetChanged();
                 Toast.makeText(this, R.string.add_ok, Toast.LENGTH_SHORT).show();
+                initEditText();
                 break;
             case R.id.modify_btn:
                 if(selectedItem == null) {
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
                     break;
                 }
-                selectedItem.addressData = addressText.getText().toString();
                 // 토큰해서 각각주소에 넣기
-                String[] splitAddressModify = TextUtils.split(selectedItem.addressData, " ");
-                int maxIndexModify = splitAddressModify.length > LAST_INDEX ? LAST_INDEX : splitAddressModify.length;
-                for(int i = 0; i < maxIndexModify; ++i) {
-                    selectedItem.rawData[ADDRESS1 + i] = splitAddressModify[i];
+                String[] splitAddressModify = TextUtils.split(addressText.getText().toString(), " ");
+                selectedItem.addressList.clear();
+                for(int i = 0; i < splitAddressModify.length; ++i) {
+                    if(getString(R.string.korea).compareToIgnoreCase(splitAddressModify[i]) == 0) {
+                        continue;
+                    }
+                    selectedItem.addressList.add(splitAddressModify[i]);
                 }
+                selectedItem.addressData = TextUtils.join(" ", selectedItem.addressList);
                 selectedItem.rawData[NAME] = titleText.getText().toString();
                 selectedItem.rawData[BUSINESS] = bizText.getText().toString();
                 Toast.makeText(this, R.string.modify_ok, Toast.LENGTH_SHORT).show();
+                initEditText();
                 mAdapter.notifyDataSetChanged();
                 break;
             case R.id.delete_btn:
@@ -220,10 +236,7 @@ public class PositionMangerActivity extends Activity
                     break;
                 }
                 dataset.remove(selectedItem);
-                titleText.setText("");
-                bizText.setText("");
-                s.setSelection(0);
-                addressText.setText("");
+                initEditText();
                 mAdapter.notifyDataSetChanged();
                 Toast.makeText(this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
                 break;
@@ -239,10 +252,17 @@ public class PositionMangerActivity extends Activity
                 Intent intent = new Intent();
                 intent.putExtra(LATITUDE_POS, targetLatLng.latitude);
                 intent.putExtra(LONGITUDE_POS, targetLatLng.longitude);
-                setResult(RESULT_ITEM_SELECT, intent);
                 Toast.makeText(this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
+                setResult(RESULT_ITEM_SELECT, intent);
                 finish();
         }
+    }
+
+    private void initEditText() {
+        titleText.setText("");
+        bizText.setText("");
+        s.setSelection(0);
+        addressText.setText("");
     }
 
     public class PositionAdapter extends RecyclerView.Adapter<PositionAdapter.CustomViewHolder> {
@@ -288,19 +308,6 @@ public class PositionMangerActivity extends Activity
                 }
             });
 
-//            customViewHolder.positionFocusBtn.setOnClickListener(new View.OnClickListener() {
-//                @Override
-//                public void onClick(View v) {
-//                    LatLng targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, toToPosition.addressData);
-//                    if(targetLatLng == null) {
-//                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-//                    }
-//                    Intent intent = new Intent();
-//                    intent.putExtra(LATITUDE_POS, targetLatLng.latitude);
-//                    intent.putExtra(LONGITUDE_POS, targetLatLng.longitude);
-//                    setResult(RESULT_ITEM_SELECT, intent);
-//                }
-//            });
         }
 
         @Override

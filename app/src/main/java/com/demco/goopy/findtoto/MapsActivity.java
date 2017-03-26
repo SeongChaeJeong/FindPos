@@ -42,6 +42,8 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import org.apache.poi.hssf.util.HSSFColor;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,9 +81,9 @@ public class MapsActivity extends AppCompatActivity
     private static final double DEFAULT_RADIUS_METERS = 200;
     private MarkerBuilderManagerV2 markerBuilderManager;
 
-    public static final int REQUEST_SEARCH = 0;
-    public static final int REQUEST_MAP_CLICK = 1;
+    public static final int REQUEST_MARKER_LONGCLICK = 1;
     public static final int RESULT_ITEM_SELECT = 2;
+    public static final int REQUEST_SEARCH = 3;
     public static final double defaultLatitude = 37.566660;
     public static final double defaultLongitude = 126.978418;
 
@@ -90,25 +92,26 @@ public class MapsActivity extends AppCompatActivity
     private List<ToToPosition> markerPositions = null;
 
     private class DraggableCircle {
-        private final Marker mCenterMarker;
-        private final Marker mRadiusMarker;
+//        private final Marker mCenterMarker;
+//        private final Marker mRadiusMarker;
         private final Circle mCircle;
         private final CircleView mCircleView = new CircleView(getApplicationContext());
         private double mRadiusMeters;
 
         public DraggableCircle(LatLng center, double radiusMeters) {
-            mRadiusMeters = radiusMeters;
-            mCenterMarker = mMap.addMarker(new MarkerOptions()
-                    .position(center)
-                    .draggable(true));
-            mRadiusMarker = mMap.addMarker(new MarkerOptions()
-                    .position(center)
-                    .draggable(true)
-                    .icon(BitmapDescriptorFactory.defaultMarker(
-                            BitmapDescriptorFactory.HUE_AZURE)));
+//            mRadiusMeters = radiusMeters;
+//            mCenterMarker = mMap.addMarker(new MarkerOptions()
+//                    .position(center)
+//                    .draggable(true));
+//            mRadiusMarker = mMap.addMarker(new MarkerOptions()
+//                    .position(center)
+//                    .draggable(true)
+//                    .icon(BitmapDescriptorFactory.defaultMarker(
+//                            BitmapDescriptorFactory.HUE_AZURE)));
             mCircle = mMap.addCircle(new CircleOptions()
                     .center(center)
                     .radius(radiusMeters)
+                    .strokeColor(Color.BLUE)
 //                    .strokeWidth(mStrokeWidthBar.getProgress())
 //                    .strokeColor(mStrokeColorArgb)
 //                    .fillColor(mFillColorArgb)
@@ -258,17 +261,19 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+
+        enableMyLocation();
+        setUpMyPostionMark();
+        getCurrentGPSInfo();
+        loadMarkPositions();
+        addLoadMarkersToMap();
+
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnMapLongClickListener(this);
         mMap.setOnCameraIdleListener(this);
         mMap.setOnMarkerClickListener(this);
         mMap.setOnCircleClickListener(this);
-        enableMyLocation();
-        setUpMyPostionMark();
-        getCurrentGPSInfo();
-        loadMarkPositions();
-        addLoadMarkersToMap();
     }
 
     private void getCurrentGPSInfo() {
@@ -312,11 +317,7 @@ public class MapsActivity extends AppCompatActivity
             String targetName = toToPosition.rawData[NAME];
             String targetBiz = toToPosition.rawData[BUSINESS];
             StringBuilder sb = new StringBuilder();
-            for(int i = ADDRESS1; i <= ADDRESS4; ++i) {
-                sb.append(toToPosition.rawData[i]);
-                sb.append(" ");
-            }
-            toToPosition.addressData = sb.toString();
+            toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
             if(TextUtils.isEmpty(toToPosition.addressData)) {
                 return;
             }
@@ -331,8 +332,6 @@ public class MapsActivity extends AppCompatActivity
                     .snippet(targetBiz)
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-            DraggableCircle circle = new DraggableCircle(targetLatLng, DEFAULT_RADIUS_METERS);
-            mCircles.add(circle);
         }
     }
 
@@ -359,8 +358,6 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public boolean onMyLocationButtonClick() {
         Toast.makeText(this, "MyLocation button clicked", Toast.LENGTH_SHORT).show();
-        // Return false so that we don't consume the event and the default behavior still occurs
-        // (the camera animates to the user's current position).
         return false;
     }
 
@@ -369,34 +366,49 @@ public class MapsActivity extends AppCompatActivity
 //        mCameraTextView.setText(mMap.getCameraPosition().toString());
     }
 
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+        mCircles.add(circle);
+//        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
+//        intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
+//        intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
+//        startActivityForResult(intent, REQUEST_SEARCH);
+        return false;
+    }
+
     @Override
     public void onMapClick(LatLng latLng) {
         addMarker(latLng, false);
-//        mTapTextView.setText("tapped, point=" + latLng);
 //        markerBuilderManager.onMapClick(latLng);
     }
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-        intent.putExtra(LATITUDE_POS, latLng.latitude);
-        intent.putExtra(LONGITUDE_POS, latLng.longitude);
-        startActivityForResult(intent, REQUEST_SEARCH);
-//        mTapTextView.setText("long pressed, point=" + latLng);
-        markerBuilderManager.onMapLongClick(latLng);
+        for(Marker marker : markerLocations) {
+            if (Math.abs(marker.getPosition().latitude - latLng.latitude) < 0.05 && Math.abs(marker.getPosition().longitude - latLng.longitude) < 0.05) {
+                Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
+                intent.putExtra(LATITUDE_POS, latLng.latitude);
+                intent.putExtra(LONGITUDE_POS, latLng.longitude);
+                startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
+                break;
+            }
+        }
+
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        mMap.clear();
+        addLoadMarkersToMap();
         super.onActivityResult(requestCode, resultCode, data);
         switch (resultCode) {
             case REQUEST_SEARCH:
                 break;
-            case REQUEST_MAP_CLICK:
+            case REQUEST_MARKER_LONGCLICK:
                 break;
             case RESULT_ITEM_SELECT:
-                mMap.clear();
-                addLoadMarkersToMap();
                 Bundle bundle = data.getExtras();
                 if(null != bundle) {
                     double focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
@@ -404,6 +416,11 @@ public class MapsActivity extends AppCompatActivity
                     mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(focusLatitude, focusLongitude)));
                 }
                 break;
+            default:
+                for(Marker marker : markerLocations) {
+                    marker.remove();
+                }
+               break;
         }
     }
 
@@ -418,25 +435,8 @@ public class MapsActivity extends AppCompatActivity
                 runtime_permissions();
             }
         }
-//        if (requestCode != LOCATION_PERMISSION_REQUEST_CODE) {
-//            return;
-//        }
-//        if (PermissionUtils.isPermissionGranted(permissions, grantResults,
-//                Manifest.permission.ACCESS_FINE_LOCATION)) {
-//            // Enable the my location layer if the permission has been granted.
-//            startGPSService();
-////            enableMyLocation();
-//        } else {
-//            // Display the missing permission error dialog when the fragments resume.
-//            mPermissionDenied = true;
-//            runtime_permissions();
-//        }
     }
 
-    @Override
-    public boolean onMarkerClick(Marker marker) {
-        return false;
-    }
 
     @Override
     protected void onResumeFragments() {
@@ -470,9 +470,8 @@ public class MapsActivity extends AppCompatActivity
         }
         Log.e( "addMarker", address );
         addMarker( 0, latLng, address );
-
-        DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
-        mCircles.add(circle);
+//        DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
+//        mCircles.add(circle);
     }
 
     public void addMarker( float color, LatLng latLng, String title ) {
@@ -492,6 +491,7 @@ public class MapsActivity extends AppCompatActivity
             markerLocations.add( marker );
         marker.showInfoWindow();
     }
+
 
     @Override
     public void onBackPressed() {

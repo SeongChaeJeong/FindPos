@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <ImageView
-        android:src="@drawable/ic_error"
-        android:id="@+id/error_image"
-        android:visibility="gone"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+    <!--<ImageView-->
+        <!--android:src="@drawable/ic_error"-->
+        <!--android:id="@+id/error_image"-->
+        <!--android:visibility="gone"-->
+        <!--android:layout_width="wrap_content"-->
+        <!--android:layout_height="wrap_content" />-->
 
     <LinearLayout
         android:id="@+id/item_layout"
-        android:layout_toRightOf="@id/error_image"
         android:orientation="vertical"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
+        android:layout_weight="1"
         android:layout_height="wrap_content">
         <LinearLayout
             android:id="@+id/market_title_layout"
@@ -90,17 +90,19 @@
                 android:layout_height="wrap_content"
                 android:layout_centerVertical="true"
                 android:layout_marginLeft="5dp"
+                android:maxLines="2"
                 android:textColor="#000000"
                 android:textSize="@dimen/title_size"
                 android:textStyle="bold"/>
 
         </LinearLayout>
     </LinearLayout>
+
     <Button
         android:id="@+id/select_item_btn"
         android:layout_toRightOf="@id/item_layout"
-        android:layout_width="wrap_content"
+        android:layout_marginRight="5dp"
+        android:layout_width="80dp"
         android:text="@string/selection_text"
         android:layout_height="wrap_content" />
-
-</RelativeLayout>
+</LinearLayout>

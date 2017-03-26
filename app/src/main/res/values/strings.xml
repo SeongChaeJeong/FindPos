@@ -12,7 +12,7 @@
     <string name="gps_off">GPS 설정이 활성화되지 않았습니다.</string>
     <string name="check_file">파일을 확인해보세요.</string>
     <string name="empty_search_result">검색결과가 없습니다.</string>
-    <string name="empty_select_result">항목이 비어있습니다.</string>
+    <string name="empty_select_result">항목을 찾을 수 없습니다.</string>
     <string name="add_ok">추가되었습니다.</string>
     <string name="modify_ok">수정되었습니다.</string>
     <string name="delete_ok">삭제되었습니다.</string>
@@ -29,6 +29,8 @@
     <string name="position_text">위치</string>
     <string name="selection_text">선택</string>
     <string name="none">없음</string>
+    <string name="korea">대한민국</string>
+
 
 
     <string name="demo_title">Google Maps API Demos</string>

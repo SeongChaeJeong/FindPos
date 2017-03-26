@@ -29,6 +29,9 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS5;
+
 /**
  * Created by goopy on 2017-03-23.
  */
@@ -141,12 +144,17 @@ public class FileManager {
                 Iterator<Cell> cellIter = myRow.cellIterator();
                 int i = 0;
                 ToToPosition toToPosition = new ToToPosition();
-                toToPosition.uniqueId = UNIQUE_INDEX++;
+                toToPosition.uniqueId = ++UNIQUE_INDEX;
                 while(cellIter.hasNext()){
                     HSSFCell myCell = (HSSFCell) cellIter.next();
-                    toToPosition.rawData[i++] = myCell.toString();
+                    if(ADDRESS1 <= i && i <= ADDRESS5) {
+                        toToPosition.addressList.add(myCell.toString());
+                        i++;
+                    }
+                    else {
+                        toToPosition.rawData[i++] = myCell.toString();
+                    }
                     Log.d("FileUtils", "Cell Value: " +  myCell.toString());
-//                    Toast.makeText(context, "cell Value: " + myCell.toString(), Toast.LENGTH_SHORT).show();
                 }
                 positionList.add(toToPosition);
             }
