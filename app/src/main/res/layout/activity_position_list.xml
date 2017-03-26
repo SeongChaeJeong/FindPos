@@ -4,14 +4,148 @@
     android:layout_height="match_parent">
 
     <RelativeLayout
+        android:id="@+id/search_layout"
         android:layout_width="wrap_content"
-        android:layout_height="100dp">
+        android:layout_marginLeft="12dp"
+        android:layout_height="60dp">
+        <EditText
+            android:id="@+id/search_text"
+            android:layout_width="200dp"
+            android:layout_height="50dp" />
+        <Button
+            android:id="@+id/search_btn"
+            android:layout_alignParentRight="true"
+            android:layout_width="130dp"
+            android:layout_height="wrap_content"
+            android:text="@string/search_text" />
     </RelativeLayout>
+
+    <View
+        android:background="@color/cast_expanded_controller_ad_label_background_color"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"/>
+
+    <RelativeLayout
+        android:id="@+id/select_iteminfo_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <LinearLayout
+            android:id="@+id/market_title_layout"
+            android:layout_marginLeft="15dp"
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/market_title_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:textAppearance="@style/TextAppearance.AppCompat.Headline"
+                android:textColor="#000000"
+                android:text="@string/market_title_label"
+                android:textSize="@dimen/title_label"/>
+
+            <EditText
+                android:id="@+id/edit_title"
+                android:layout_width="@dimen/title_length"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginLeft="5dp"
+                android:textColor="#000000"
+                android:textSize="@dimen/title_size"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/market_category_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:textAppearance="@style/TextAppearance.AppCompat.Headline"
+                android:textColor="#000000"
+                android:text="@string/market_category_label"
+                android:textSize="@dimen/title_label"/>
+
+            <EditText
+                android:id="@+id/market_category"
+                android:layout_width="@dimen/title_length"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginLeft="5dp"
+                android:textColor="#000000"
+                android:textSize="@dimen/title_size"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/address_layout"
+            android:layout_below="@id/market_title_layout"
+            android:layout_marginLeft="15dp"
+            android:layout_marginBottom="15dp"
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/market_address_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:textAppearance="@style/TextAppearance.AppCompat.Headline"
+                android:textColor="#000000"
+                android:text="@string/address_label"
+                android:textSize="@dimen/title_label"/>
+
+            <EditText
+                android:id="@+id/market_address"
+                android:layout_width="300dp"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginLeft="5dp"
+                android:textColor="#000000"
+                android:textSize="@dimen/title_size"
+                android:textStyle="bold"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_below="@id/address_layout"
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_marginRight="12dp"
+            android:layout_height="50dp">
+            <Button
+                android:id="@+id/add_btn"
+                android:layout_alignParentRight="true"
+                android:layout_width="130dp"
+                android:layout_height="wrap_content"
+                android:text="@string/add_text" />
+
+            <Button
+                android:id="@+id/modify_btn"
+                android:layout_alignParentRight="true"
+                android:layout_width="130dp"
+                android:layout_height="wrap_content"
+                android:text="@string/modify_text" />
+
+            <Button
+                android:id="@+id/delete_btn"
+                android:layout_alignParentRight="true"
+                android:layout_width="130dp"
+                android:layout_height="wrap_content"
+                android:text="@string/delete_text" />
+
+        </LinearLayout>
+    </RelativeLayout>
+
+    <View
+        android:background="@color/cast_expanded_controller_ad_label_background_color"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"/>
+
     <android.support.v7.widget.RecyclerView
         android:id="@+id/position_recycler_view"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
-
     </android.support.v7.widget.RecyclerView>
 
 </LinearLayout>
