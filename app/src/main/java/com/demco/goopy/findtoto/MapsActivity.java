@@ -35,6 +35,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
@@ -46,7 +47,9 @@ import org.apache.poi.hssf.util.HSSFColor;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
@@ -88,8 +91,20 @@ public class MapsActivity extends AppCompatActivity
     public static final double defaultLongitude = 126.978418;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
-    private List<Marker> markerLocations = new ArrayList<Marker>();
+    private List<Marker> markerLocations = new ArrayList<>();
     private List<ToToPosition> markerPositions = null;
+    private Map<String, Float> bizCategoryColorMap = new HashMap<>();
+
+    private float[] arrayPinColors = new float[] {
+            BitmapDescriptorFactory.HUE_AZURE,
+            BitmapDescriptorFactory.HUE_BLUE,
+            BitmapDescriptorFactory.HUE_CYAN,
+            BitmapDescriptorFactory.HUE_GREEN,
+            BitmapDescriptorFactory.HUE_MAGENTA,
+            BitmapDescriptorFactory.HUE_ROSE,
+            BitmapDescriptorFactory.HUE_VIOLET,
+            BitmapDescriptorFactory.HUE_YELLOW
+    };
 
     private class DraggableCircle {
 //        private final Marker mCenterMarker;
@@ -129,7 +144,9 @@ public class MapsActivity extends AppCompatActivity
                 .map(mMap)
                 .enabled(true)
                 .radius(200)
-                .strokeColor(Color.BLUE)
+                .strokeColor(Color.RED)
+                .fillColor(Color.TRANSPARENT)
+                .resizerIcon(R.drawable.ic_person_pin_circle)
                 .centerIcon(R.drawable.ic_person_pin_circle)
                 .build();
 
@@ -313,10 +330,15 @@ public class MapsActivity extends AppCompatActivity
 
     private void addLoadMarkersToMap() {
         markerPositions = PositionDataSingleton.getInstance().getMarkerPositions();
+        bizCategoryColorMap.clear();
+        bizCategoryColorMap.put(getResources().getString(R.string.none), BitmapDescriptorFactory.HUE_ORANGE);
+        int i = 0;
         for(ToToPosition toToPosition : markerPositions) {
             String targetName = toToPosition.rawData[NAME];
             String targetBiz = toToPosition.rawData[BUSINESS];
-            StringBuilder sb = new StringBuilder();
+            if(bizCategoryColorMap.containsKey(targetBiz) == false) {
+                bizCategoryColorMap.put(targetBiz, arrayPinColors[i++ % arrayPinColors.length]);
+            }
             toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
             if(TextUtils.isEmpty(toToPosition.addressData)) {
                 return;
@@ -330,9 +352,15 @@ public class MapsActivity extends AppCompatActivity
                     .position(targetLatLng)
                     .title(targetName)
                     .snippet(targetBiz)
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
-
+                    .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(targetBiz))));
+            // .icon(getMarkerIcon("#dadfsf"));
         }
+    }
+
+    public BitmapDescriptor getMarkerIcon(String color) {
+        float[] hsv = new float[3];
+        Color.colorToHSV(Color.parseColor(color), hsv);
+        return BitmapDescriptorFactory.defaultMarker(hsv[0]);
     }
 
     /**
@@ -483,7 +511,7 @@ public class MapsActivity extends AppCompatActivity
             markerOptions.title( title );
 
         if( color == 0 )
-            color = BitmapDescriptorFactory.HUE_RED;
+            color = BitmapDescriptorFactory.HUE_ORANGE;
 
         markerOptions.icon( BitmapDescriptorFactory.defaultMarker( color ) );
         Marker marker = mMap.addMarker( markerOptions );
