@@ -12,7 +12,7 @@
         android:id="@+id/search_pos_list"
         android:src="@drawable/ic_search"
         android:layout_alignParentRight="true"
-        android:layout_marginTop="30dp"
+        android:layout_marginTop="3dp"
         android:layout_marginRight="10dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
@@ -26,8 +26,19 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
+
     <ImageView
         android:layout_below="@id/gps_current"
+        android:id="@+id/gps_off"
+        android:visibility="visible"
+        android:src="@drawable/ic_gps_off"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="10dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <ImageView
+        android:layout_below="@id/gps_off"
         android:id="@+id/app_close"
         android:src="@drawable/ic_close"
         android:layout_alignParentRight="true"
@@ -35,15 +46,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
 
-    <ImageView
-        android:layout_below="@id/app_close"
-        android:id="@+id/gps_off"
-        android:visibility="invisible"
-        android:src="@drawable/ic_gps_off"
-        android:layout_alignParentRight="true"
-        android:layout_marginRight="10dp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
 
 
 </RelativeLayout>

@@ -36,7 +36,6 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -72,16 +71,17 @@ public class MapsActivity extends AppCompatActivity
     private ImageView mGpsOffImageView;
     private GoogleMap mMap;
     private boolean mPermissionDenied = false;
+    private boolean mGPSRecevie = true;
     private LocationManager manager;
     private BroadcastReceiver broadcastReceiver;
 
     private static final float DEFAULT_ZOOM = 14.0f;
     private static final double DEFAULT_RADIUS_METERS = 200;
-    private static final LatLng YJ = new LatLng(37.4799, 127.0124);
     private MarkerBuilderManagerV2 markerBuilderManager;
 
-    private int REQUEST_SEARCH = 0;
-    private int REQUEST_MAP_CLICK = 1;
+    public static final int REQUEST_SEARCH = 0;
+    public static final int REQUEST_MAP_CLICK = 1;
+    public static final int RESULT_ITEM_SELECT = 2;
     public static final double defaultLatitude = 37.566660;
     public static final double defaultLongitude = 126.978418;
 
@@ -116,7 +116,7 @@ public class MapsActivity extends AppCompatActivity
         }
 
         public void setClickable(boolean clickable) {
-            Toast.makeText(MapsActivity.this, "setClickable", 0).show();
+            Toast.makeText(MapsActivity.this, "setClickable", Toast.LENGTH_SHORT).show();
             mCircle.setClickable(clickable);
         }
     }
@@ -173,6 +173,10 @@ public class MapsActivity extends AppCompatActivity
         mCurrentImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if(mGPSRecevie == false) {
+                    Toast.makeText(MapsActivity.this, R.string.gps_receive_on, Toast.LENGTH_SHORT).show();
+                }
+                mGPSRecevie = true;
                 getCurrentGPSInfo();
             }
         });
@@ -205,8 +209,8 @@ public class MapsActivity extends AppCompatActivity
         mGpsOffImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent i = new Intent(getApplicationContext(),GPS_Service.class);
-                stopService(i);
+                mGPSRecevie = false;
+                Toast.makeText(MapsActivity.this, R.string.gps_receive_off, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -222,10 +226,12 @@ public class MapsActivity extends AppCompatActivity
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    double lantitute = (double)intent.getExtras().get(LATITUDE_POS);
-                    double longitute = (double)intent.getExtras().get(LONGITUDE_POS);
-                    markerBuilderManager.onMapClick(new LatLng(lantitute,longitute));
-                    mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(lantitute,longitute)));
+                    if(mGPSRecevie) {
+                        double lantitute = (double)intent.getExtras().get(LATITUDE_POS);
+                        double longitute = (double)intent.getExtras().get(LONGITUDE_POS);
+                        markerBuilderManager.onMapClick(new LatLng(lantitute,longitute));
+                        mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(lantitute,longitute)));
+                    }
                 }
             };
         }
@@ -266,7 +272,7 @@ public class MapsActivity extends AppCompatActivity
     }
 
     private void getCurrentGPSInfo() {
-         GpsInfo gps = new GpsInfo(MapsActivity.this);
+        GpsInfo gps = new GpsInfo(MapsActivity.this);
         // GPS 사용유무 가져오기
         if (gps.isGetLocation()) {
             double latitude = gps.getLatitude();
@@ -330,7 +336,6 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
-
     /**
      * Enables the My Location layer if the fine location permission has been granted.
      */
@@ -384,6 +389,22 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        switch (resultCode) {
+            case REQUEST_SEARCH:
+                break;
+            case REQUEST_MAP_CLICK:
+                break;
+            case RESULT_ITEM_SELECT:
+                mMap.clear();
+                addLoadMarkersToMap();
+                Bundle bundle = data.getExtras();
+                if(null != bundle) {
+                    double focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
+                    double focusLongitude = bundle.getDouble(LONGITUDE_POS, defaultLongitude);
+                    mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(focusLatitude, focusLongitude)));
+                }
+                break;
+        }
     }
 
     @Override
@@ -486,4 +507,6 @@ public class MapsActivity extends AppCompatActivity
         }
         return false;
     }
+
+
 }

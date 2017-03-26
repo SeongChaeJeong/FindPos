@@ -7,6 +7,7 @@
         android:id="@+id/search_layout"
         android:layout_width="wrap_content"
         android:layout_marginLeft="12dp"
+        android:layout_marginRight="12dp"
         android:layout_height="60dp">
         <EditText
             android:id="@+id/search_text"
@@ -75,6 +76,12 @@
                 android:textColor="#000000"
                 android:textSize="@dimen/title_size"
                 android:textStyle="bold"/>
+
+            <Spinner
+                android:id="@+id/biz_category_spinner"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
         </LinearLayout>
 
         <LinearLayout
@@ -110,29 +117,39 @@
         <LinearLayout
             android:layout_below="@id/address_layout"
             android:orientation="horizontal"
+            android:weightSum="3"
             android:layout_width="match_parent"
+            android:layout_marginLeft="12dp"
             android:layout_marginRight="12dp"
             android:layout_height="50dp">
+
             <Button
                 android:id="@+id/add_btn"
-                android:layout_alignParentRight="true"
-                android:layout_width="130dp"
+                android:layout_weight="1"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/add_text" />
 
             <Button
                 android:id="@+id/modify_btn"
-                android:layout_alignParentRight="true"
-                android:layout_width="130dp"
+                android:layout_weight="1"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/modify_text" />
 
             <Button
                 android:id="@+id/delete_btn"
-                android:layout_alignParentRight="true"
-                android:layout_width="130dp"
+                android:layout_weight="1"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/delete_text" />
+
+            <Button
+                android:id="@+id/focus_map_btn"
+                android:layout_weight="1"
+                android:text="@string/position_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
 
         </LinearLayout>
     </RelativeLayout>
@@ -147,5 +164,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
     </android.support.v7.widget.RecyclerView>
+
 
 </LinearLayout>

@@ -12,6 +12,7 @@
         android:layout_height="wrap_content" />
 
     <LinearLayout
+        android:id="@+id/item_layout"
         android:layout_toRightOf="@id/error_image"
         android:orientation="vertical"
         android:layout_width="wrap_content"
@@ -94,8 +95,12 @@
                 android:textStyle="bold"/>
 
         </LinearLayout>
-
-
     </LinearLayout>
+    <Button
+        android:id="@+id/select_item_btn"
+        android:layout_toRightOf="@id/item_layout"
+        android:layout_width="wrap_content"
+        android:text="@string/selection_text"
+        android:layout_height="wrap_content" />
 
 </RelativeLayout>

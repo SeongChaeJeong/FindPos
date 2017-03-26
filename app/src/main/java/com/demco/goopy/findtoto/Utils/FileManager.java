@@ -34,6 +34,7 @@ import java.util.List;
  */
 
 public class FileManager {
+    public static int UNIQUE_INDEX = 1;
 
     public static boolean saveExcelFile(List<ToToPosition> toToPositionList, Context context, String fileName) {
 
@@ -140,6 +141,7 @@ public class FileManager {
                 Iterator<Cell> cellIter = myRow.cellIterator();
                 int i = 0;
                 ToToPosition toToPosition = new ToToPosition();
+                toToPosition.uniqueId = UNIQUE_INDEX++;
                 while(cellIter.hasNext()){
                     HSSFCell myCell = (HSSFCell) cellIter.next();
                     toToPosition.rawData[i++] = myCell.toString();
