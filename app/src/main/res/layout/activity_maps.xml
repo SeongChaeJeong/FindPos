@@ -8,25 +8,44 @@
         android:layout_height="match_parent"
         class="com.google.android.gms.maps.SupportMapFragment"/>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:background="#ffffffff"
-        android:orientation="vertical">
+    <ImageView
+        android:id="@+id/search_pos_list"
+        android:src="@drawable/ic_search"
+        android:layout_alignParentRight="true"
+        android:layout_marginTop="3dp"
+        android:layout_marginRight="10dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
 
-        <TextView
-            android:id="@+id/tap_text"
-            android:text="@string/tap_instructions"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+    <ImageView
+        android:layout_below="@id/search_pos_list"
+        android:id="@+id/gps_current"
+        android:src="@drawable/ic_gps_fixed"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="10dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
 
-        <TextView
-            android:id="@+id/camera_text"
-            android:text="@string/move_the_camera"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
 
-    </LinearLayout>
+    <ImageView
+        android:layout_below="@id/gps_current"
+        android:id="@+id/gps_off"
+        android:visibility="visible"
+        android:src="@drawable/ic_gps_off"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="10dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <ImageView
+        android:layout_below="@id/gps_off"
+        android:id="@+id/app_close"
+        android:src="@drawable/ic_close"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="10dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+
 
 </RelativeLayout>

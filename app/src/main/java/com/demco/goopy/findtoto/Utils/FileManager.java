@@ -5,7 +5,9 @@ import android.os.Environment;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
+import com.demco.goopy.findtoto.R;
 
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFCellStyle;
@@ -27,11 +29,15 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS5;
+
 /**
  * Created by goopy on 2017-03-23.
  */
 
 public class FileManager {
+    public static int UNIQUE_INDEX = 1;
 
     public static boolean saveExcelFile(List<ToToPosition> toToPositionList, Context context, String fileName) {
 
@@ -100,13 +106,16 @@ public class FileManager {
         return success;
     }
 
-    public static void readExcelFile(List<ToToPosition> positionList, Context context, String filename) {
+    public static boolean readExcelFile(Context context, String filename) {
 
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly())
         {
             Log.w("FileUtils", "Storage not available or read only");
-            return;
+            Toast.makeText(context, R.string.permission_not_exist, Toast.LENGTH_LONG).show();
+            return false;
         }
+
+        List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
 
         try{
             // Creating Input Stream
@@ -129,22 +138,33 @@ public class FileManager {
                 HSSFRow myRow = (HSSFRow) rowIter.next();
             }
 
+            positionList.clear();
             while(rowIter.hasNext()){
                 HSSFRow myRow = (HSSFRow) rowIter.next();
                 Iterator<Cell> cellIter = myRow.cellIterator();
                 int i = 0;
                 ToToPosition toToPosition = new ToToPosition();
+                toToPosition.uniqueId = ++UNIQUE_INDEX;
                 while(cellIter.hasNext()){
                     HSSFCell myCell = (HSSFCell) cellIter.next();
-                    toToPosition.rawData[i++] = myCell.toString();
+                    if(ADDRESS1 <= i && i <= ADDRESS5) {
+                        toToPosition.addressList.add(myCell.toString());
+                        i++;
+                    }
+                    else {
+                        toToPosition.rawData[i++] = myCell.toString();
+                    }
                     Log.d("FileUtils", "Cell Value: " +  myCell.toString());
-//                    Toast.makeText(context, "cell Value: " + myCell.toString(), Toast.LENGTH_SHORT).show();
                 }
                 positionList.add(toToPosition);
             }
-        }catch (Exception e){e.printStackTrace(); }
+        }catch (Exception e){
+            Toast.makeText(context, R.string.file_not_exist, Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+            return false;
+        }
 
-        return;
+        return true;
     }
 
     public static boolean isExternalStorageReadOnly() {
