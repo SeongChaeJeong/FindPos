@@ -20,6 +20,8 @@
     <string name="focus_ok">해당 지도위치로 이동합니다.</string>
     <string name="gps_receive_off">GPS 수신을 차단합니다.</string>
     <string name="gps_receive_on">GPS 수신을 받습니다.</string>
+    <string name="error_crash">앱이 비정상 종료되었습니다. 비정상 종료 원인파악을 위해 메일을 보내주세요~!</string>
+
 
 
     <string name="search_text">검색</string>
