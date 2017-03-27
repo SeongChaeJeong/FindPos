@@ -6,11 +6,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -18,6 +20,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -45,8 +48,14 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import org.apache.poi.hssf.util.HSSFColor;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +83,7 @@ public class MapsActivity extends AppCompatActivity
     private ImageView mCloseImageView;
     private ImageView mCurrentImageView;
     private ImageView mGpsOffImageView;
+    private ImageView mScreenSaveImageView;
     private GoogleMap mMap;
     private boolean mPermissionDenied = false;
     private boolean mGPSRecevie = true;
@@ -94,6 +104,11 @@ public class MapsActivity extends AppCompatActivity
     private List<Marker> markerLocations = new ArrayList<>();
     private List<ToToPosition> markerPositions = null;
     private Map<String, Float> bizCategoryColorMap = new HashMap<>();
+    private View capView;
+    private ViewGroup mainLayout;
+    private ImageView imageView;
+    private Bitmap mbitmap;
+
 
     private float[] arrayPinColors = new float[] {
             BitmapDescriptorFactory.HUE_AZURE,
@@ -146,8 +161,8 @@ public class MapsActivity extends AppCompatActivity
                 .radius(200)
                 .strokeColor(Color.RED)
                 .fillColor(Color.TRANSPARENT)
-                .resizerIcon(R.drawable.ic_person_pin_circle)
-                .centerIcon(R.drawable.ic_person_pin_circle)
+//                .resizerIcon(R.drawable.ic_person_pin_circle)
+//                .centerIcon(R.drawable.ic_person_pin_circle)
                 .build();
 
 //        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
@@ -180,7 +195,9 @@ public class MapsActivity extends AppCompatActivity
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
         mCurrentImageView= (ImageView) findViewById(R.id.gps_current);
         mCloseImageView = (ImageView) findViewById(R.id.app_close);
+        mScreenSaveImageView = (ImageView) findViewById(R.id.screen_save);
         mGpsOffImageView = (ImageView) findViewById(R.id.gps_off);
+        mainLayout = (ViewGroup) findViewById(R.id.main_layout);
 
         mSearchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -224,6 +241,26 @@ public class MapsActivity extends AppCompatActivity
                         .show();
             }
         });
+
+        mScreenSaveImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                capView = getWindow().getDecorView();
+                try {
+//                    screenShot(capView);
+//                    mainLayout.setDrawingCacheEnabled(false);
+//                    mainLayout.setDrawingCacheEnabled(true);
+//                    Bitmap bmScreen = mainLayout.getDrawingCache();
+//                    createImage(bmScreen);
+                    screenShot(mainLayout);
+
+                }
+                catch (Exception e) {
+                    Toast.makeText(MapsActivity.this, R.string.command_failed, Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
 
         // 추후에 자동화 할때 필요
         mGpsOffImageView.setOnClickListener(new View.OnClickListener() {
@@ -536,5 +573,74 @@ public class MapsActivity extends AppCompatActivity
         return false;
     }
 
+    public void screenShot(View view) {
+        mbitmap = getBitmapOFRootView(mScreenSaveImageView);
+//        imageView.setImageBitmap(mbitmap);
+        createImage(mbitmap);
+    }
+
+    public Bitmap getBitmapOFRootView(View v) {
+        View rootview = v.getRootView();
+        rootview.setDrawingCacheEnabled(true);
+        Bitmap bitmap1 = rootview.getDrawingCache();
+        return bitmap1;
+    }
+
+    public void createImage(Bitmap bmp) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        bmp.compress(Bitmap.CompressFormat.JPEG, 40, bytes);
+        String filename = "screenshot2.png";
+        File file = new File(this.getExternalFilesDir(null), filename);
+//        File file = new File(Environment.getExternalStorageDirectory() +
+//                "/capturedscreenandroid.jpg");
+        try {
+            file.createNewFile();
+            FileOutputStream outputStream = new FileOutputStream(file);
+            outputStream.write(bytes.toByteArray());
+            outputStream.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void screenshot (View view) throws Exception{
+
+        view.setDrawingCacheEnabled(true);
+
+        Bitmap scrreenshot = view.getDrawingCache();
+
+        String filename = "screenshot.png";
+
+        try{
+
+//            File f = new File(Environment.getEx(),filename);
+            File f = new File(this.getExternalFilesDir(null), filename);
+            f.createNewFile();
+            OutputStream outStream = new FileOutputStream(f);
+            scrreenshot.compress(Bitmap.CompressFormat.PNG, 100, outStream);
+            outStream.close();
+        }catch( IOException e){
+            e.printStackTrace();
+        }
+
+        view.setDrawingCacheEnabled(false);
+    }
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  // prefix
+                ".jpg",         // suffix
+                storageDir      // directory
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+//        mCurrentPhotoPath = "file:" + image.getAbsolutePath();
+        return image;
+    }
 
 }

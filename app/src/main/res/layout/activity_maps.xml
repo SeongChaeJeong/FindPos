@@ -1,4 +1,5 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -39,6 +40,15 @@
 
     <ImageView
         android:layout_below="@id/gps_off"
+        android:id="@+id/screen_save"
+        android:src="@drawable/ic_save"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="10dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <ImageView
+        android:layout_below="@id/screen_save"
         android:id="@+id/app_close"
         android:src="@drawable/ic_close"
         android:layout_alignParentRight="true"

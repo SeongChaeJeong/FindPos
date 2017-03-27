@@ -165,6 +165,10 @@ public class PositionMangerActivity extends Activity
         }
         switch (v.getId()) {
             case R.id.search_btn:
+                if(searchText.getText().toString().isEmpty()) {
+                    Toast.makeText(this, R.string.empty_search_request, Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 searchResultdataset.clear();
                 String titleData = searchText.getText().toString();
                 KoreanTextMatcher matcher = new KoreanTextMatcher(titleData);
