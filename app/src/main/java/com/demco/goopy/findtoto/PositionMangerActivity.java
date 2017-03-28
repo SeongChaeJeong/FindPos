@@ -3,13 +3,20 @@ package com.demco.goopy.findtoto;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -33,11 +40,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static android.icu.lang.UScript.MODI;
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
 import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
 import static com.demco.goopy.findtoto.Data.ToToPosition.LAST_INDEX;
+import static com.demco.goopy.findtoto.Data.ToToPosition.MDDIFY;
 import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
+import static com.demco.goopy.findtoto.Data.ToToPosition.NONE;
 import static com.demco.goopy.findtoto.MapsActivity.RESULT_ITEM_SELECT;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
@@ -46,7 +56,7 @@ import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
  * Created by goopy on 2017-03-25.
  */
 
-public class PositionMangerActivity extends Activity
+public class PositionMangerActivity extends AppCompatActivity
         implements View.OnClickListener {
 
     public static String LATITUDE_POS = "latitudePos";
@@ -64,7 +74,7 @@ public class PositionMangerActivity extends Activity
     private double focusLongitude = defaultLongitude;
 
     private int selectItemUniqeId = 0;
-
+    Toolbar myToolbar = null;
     EditText searchText = null;
     EditText titleText = null;
     EditText bizText = null;
@@ -99,6 +109,14 @@ public class PositionMangerActivity extends Activity
                 focusLongitude = bundle.getDouble(LONGITUDE_POS, defaultLongitude);
             }
         }
+
+        myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
+        setSupportActionBar(myToolbar);
+        getSupportActionBar().setDisplayShowTitleEnabled(true);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        getSupportActionBar().setHomeButtonEnabled(true);
+        getSupportActionBar().setTitle(R.string.position_list_title);
+        getSupportActionBar().setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.toolbarColor)));
 
         searchText = (EditText)findViewById(R.id.search_text);
         titleText = (EditText)findViewById(R.id.edit_title);
@@ -165,6 +183,10 @@ public class PositionMangerActivity extends Activity
         }
         switch (v.getId()) {
             case R.id.search_btn:
+                if(searchText.getText().toString().isEmpty()) {
+                    Toast.makeText(this, R.string.empty_search_request, Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 searchResultdataset.clear();
                 String titleData = searchText.getText().toString();
                 KoreanTextMatcher matcher = new KoreanTextMatcher(titleData);
@@ -184,6 +206,10 @@ public class PositionMangerActivity extends Activity
                 }
                 break;
             case R.id.add_btn:
+                if(addressText.getText().toString().isEmpty()) {
+                    Toast.makeText(this, R.string.empty_address_result, Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 ToToPosition newPosition = new ToToPosition();
                 // 토큰해서 각각주소에 넣기
                 String[] splitAddress = TextUtils.split(addressText.getText().toString(), " ");
@@ -204,6 +230,7 @@ public class PositionMangerActivity extends Activity
                 }
 
                 newPosition.uniqueId = ++FileManager.UNIQUE_INDEX;
+                newPosition.state = NONE;
                 dataset.add(newPosition);
                 mAdapter.notifyDataSetChanged();
                 Toast.makeText(this, R.string.add_ok, Toast.LENGTH_SHORT).show();
@@ -228,6 +255,7 @@ public class PositionMangerActivity extends Activity
                 selectedItem.rawData[BUSINESS] = bizText.getText().toString();
                 Toast.makeText(this, R.string.modify_ok, Toast.LENGTH_SHORT).show();
                 initEditText();
+                selectedItem.state = MDDIFY;
                 mAdapter.notifyDataSetChanged();
                 break;
             case R.id.delete_btn:
@@ -263,6 +291,34 @@ public class PositionMangerActivity extends Activity
         bizText.setText("");
         s.setSelection(0);
         addressText.setText("");
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.position_list_menu, menu);
+        return true;
+    }
+
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case android.R.id.home:
+                onBackPressed();
+                return true;
+            case R.id.action_list_save:
+                if(FileManager.saveExcelFile(this, "address2.xls")) {
+                    Toast.makeText(this, R.string.save_ok, Toast.LENGTH_SHORT).show();
+                }
+                else {
+                    Toast.makeText(this, R.string.save_fail, Toast.LENGTH_SHORT).show();
+                }
+                return true;
+
+            default:
+                return super.onOptionsItemSelected(item);
+        }
     }
 
     public class PositionAdapter extends RecyclerView.Adapter<PositionAdapter.CustomViewHolder> {

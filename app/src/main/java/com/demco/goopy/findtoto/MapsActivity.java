@@ -2,15 +2,22 @@ package com.demco.goopy.findtoto;
 
 import android.Manifest;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -18,9 +25,13 @@ import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.aconcepcion.geofencemarkerbuilder.CircleManagerListener;
+import com.aconcepcion.geofencemarkerbuilder.GeofenceCircle;
 import com.aconcepcion.geofencemarkerbuilder.MarkerBuilderManagerV2;
 import com.afollestad.materialdialogs.DialogAction;
 import com.afollestad.materialdialogs.MaterialDialog;
@@ -28,6 +39,7 @@ import com.demco.goopy.findtoto.Data.GpsInfo;
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.System.GPS_Service;
+import com.demco.goopy.findtoto.System.LoadData_Service;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Views.CircleView;
@@ -45,8 +57,14 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import org.apache.poi.hssf.util.HSSFColor;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +73,7 @@ import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
 import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
 import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
+import static com.demco.goopy.findtoto.Data.ToToPosition.VISIBLE;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
 
@@ -67,6 +86,7 @@ public class MapsActivity extends AppCompatActivity
         GoogleMap.OnMarkerClickListener,
         GoogleMap.OnMyLocationButtonClickListener,
         GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener, GoogleMap.OnCameraIdleListener,
+        CircleManagerListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
 
     public static String TAG = "MapsActivity";
@@ -74,6 +94,7 @@ public class MapsActivity extends AppCompatActivity
     private ImageView mCloseImageView;
     private ImageView mCurrentImageView;
     private ImageView mGpsOffImageView;
+    private ImageView mScreenSaveImageView;
     private GoogleMap mMap;
     private boolean mPermissionDenied = false;
     private boolean mGPSRecevie = true;
@@ -94,6 +115,12 @@ public class MapsActivity extends AppCompatActivity
     private List<Marker> markerLocations = new ArrayList<>();
     private List<ToToPosition> markerPositions = null;
     private Map<String, Float> bizCategoryColorMap = new HashMap<>();
+    private View capView;
+    private ViewGroup mainLayout;
+    private ImageView imageView;
+    private TextView mRadiusText;
+    private Bitmap mbitmap;
+
 
     private float[] arrayPinColors = new float[] {
             BitmapDescriptorFactory.HUE_AZURE,
@@ -107,27 +134,14 @@ public class MapsActivity extends AppCompatActivity
     };
 
     private class DraggableCircle {
-//        private final Marker mCenterMarker;
-//        private final Marker mRadiusMarker;
         private final Circle mCircle;
-        private final CircleView mCircleView = new CircleView(getApplicationContext());
-        private double mRadiusMeters;
 
         public DraggableCircle(LatLng center, double radiusMeters) {
-//            mRadiusMeters = radiusMeters;
-//            mCenterMarker = mMap.addMarker(new MarkerOptions()
-//                    .position(center)
-//                    .draggable(true));
-//            mRadiusMarker = mMap.addMarker(new MarkerOptions()
-//                    .position(center)
-//                    .draggable(true)
-//                    .icon(BitmapDescriptorFactory.defaultMarker(
-//                            BitmapDescriptorFactory.HUE_AZURE)));
             mCircle = mMap.addCircle(new CircleOptions()
                     .center(center)
                     .radius(radiusMeters)
                     .strokeColor(Color.BLUE)
-//                    .strokeWidth(mStrokeWidthBar.getProgress())
+                    .strokeWidth(1)
 //                    .strokeColor(mStrokeColorArgb)
 //                    .fillColor(mFillColorArgb)
                     .clickable(true));
@@ -139,34 +153,6 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
-    private void setUpMyPostionMark() {
-        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-                .map(mMap)
-                .enabled(true)
-                .radius(200)
-                .strokeColor(Color.RED)
-                .fillColor(Color.TRANSPARENT)
-                .resizerIcon(R.drawable.ic_person_pin_circle)
-                .centerIcon(R.drawable.ic_person_pin_circle)
-                .build();
-
-//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-//                .map(googleMap)
-//                .enabled(isEnabled)
-//                .radius(initRadiusMetersFinal)
-//                .circleId(circleId)
-//                .strokeWidth(strokeWidth)
-//                .strokeColor(strokeColor)
-//                .fillColor(fillColor)
-//                .minRadius(minRadius)
-//                .maxRadius(maxRadius)
-//                .centerIcon(centerIcon)
-//                .centerBitmap(centerBitmap)
-//                .resizerIcon(resizerIcon)
-//                .centerOffsetHorizontal(centerOffsetHorizontal)
-//                .centerOffsetVertical(centerOffsetVertical)
-//                .build();
-    }
 
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
@@ -177,10 +163,14 @@ public class MapsActivity extends AppCompatActivity
         if(false == runtime_permissions()) {
             startGPSService();
         }
+        startLoadDataService();
+        mRadiusText = (TextView) findViewById(R.id.main_circle_text);
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
         mCurrentImageView= (ImageView) findViewById(R.id.gps_current);
         mCloseImageView = (ImageView) findViewById(R.id.app_close);
+        mScreenSaveImageView = (ImageView) findViewById(R.id.screen_save);
         mGpsOffImageView = (ImageView) findViewById(R.id.gps_off);
+        mainLayout = (ViewGroup) findViewById(R.id.main_layout);
 
         mSearchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -209,6 +199,8 @@ public class MapsActivity extends AppCompatActivity
                         .positiveText(R.string.agree)
                         .negativeText(R.string.disagree)
                         .backgroundColorRes(R.color.white)
+                        .positiveColorRes(R.color.dialogBtnColor)
+                        .negativeColorRes(R.color.dialogBtnColor)
                         .contentColorRes(R.color.black)
                         .onPositive(new MaterialDialog.SingleButtonCallback() {
                             @Override
@@ -224,6 +216,26 @@ public class MapsActivity extends AppCompatActivity
                         .show();
             }
         });
+
+        mScreenSaveImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                capView = getWindow().getDecorView();
+                try {
+//                    screenShot(capView);
+//                    mainLayout.setDrawingCacheEnabled(false);
+//                    mainLayout.setDrawingCacheEnabled(true);
+//                    Bitmap bmScreen = mainLayout.getDrawingCache();
+//                    createImage(bmScreen);
+                    screenShot(mainLayout);
+
+                }
+                catch (Exception e) {
+                    Toast.makeText(MapsActivity.this, R.string.command_failed, Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
 
         // 추후에 자동화 할때 필요
         mGpsOffImageView.setOnClickListener(new View.OnClickListener() {
@@ -242,20 +254,26 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+        Intent intent = new Intent(this, LoadData_Service.class);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
         if(broadcastReceiver == null){
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    if(mGPSRecevie) {
+                    if(intent.getAction().compareTo("location_update") == 0 && mGPSRecevie) {
                         double lantitute = (double)intent.getExtras().get(LATITUDE_POS);
                         double longitute = (double)intent.getExtras().get(LONGITUDE_POS);
                         markerBuilderManager.onMapClick(new LatLng(lantitute,longitute));
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(lantitute,longitute)));
                     }
+                    else if(intent.getAction().compareTo("postion_data_update") == 0) {
+                        addLoadMarkersToMap();
+                    }
                 }
             };
         }
         registerReceiver(broadcastReceiver, new IntentFilter("location_update"));
+        registerReceiver(broadcastReceiver, new IntentFilter("postion_data_update"));
     }
 
     @Override
@@ -266,15 +284,6 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -282,9 +291,6 @@ public class MapsActivity extends AppCompatActivity
         enableMyLocation();
         setUpMyPostionMark();
         getCurrentGPSInfo();
-        loadMarkPositions();
-        addLoadMarkersToMap();
-
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnMapLongClickListener(this);
@@ -292,6 +298,7 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMarkerClickListener(this);
         mMap.setOnCircleClickListener(this);
     }
+
 
     private void getCurrentGPSInfo() {
         GpsInfo gps = new GpsInfo(MapsActivity.this);
@@ -319,14 +326,61 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
+    private void startLoadDataService() {
+        Intent i = new Intent(getApplicationContext(), LoadData_Service.class);
+        startService(i);
+    }
+
     private void startGPSService() {
         Intent i = new Intent(getApplicationContext(),GPS_Service.class);
         startService(i);
     }
 
-    private void loadMarkPositions() {
-        FileManager.readExcelFile(this,"address.xls");
+    private LoadData_Service loadData_service;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            LoadData_Service.MyBinder myBinder = (LoadData_Service.MyBinder) service;
+            loadData_service = myBinder.getService();
+            Toast.makeText(MapsActivity.this, "service Connected", Toast.LENGTH_SHORT).show();
+
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            loadData_service = null;
+        }
+    };
+
+    private void setUpMyPostionMark() {
+        Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.ic_error);
+        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+                .map(mMap)
+                .enabled(true)
+                .radius(200)
+                .strokeColor(Color.RED)
+                .centerBitmap(bm)
+                .fillColor(Color.TRANSPARENT)
+//                .resizerIcon(R.drawable.ic_person_pin_circle)
+//                .centerIcon(R.drawable.ic_person_pin_circle)
+                .listener(this)
+                .build();
+
+//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+//                .circleId(circleId)
+//                .strokeWidth(strokeWidth)
+//                .strokeColor(strokeColor)
+//                .minRadius(minRadius)
+//                .maxRadius(maxRadius)
+//                .centerIcon(centerIcon)
+//                .centerBitmap(centerBitmap)
+//                .resizerIcon(resizerIcon)
+//                .centerOffsetHorizontal(centerOffsetHorizontal)
+//                .centerOffsetVertical(centerOffsetVertical)
+//                .build();
     }
+
 
     private void addLoadMarkersToMap() {
         markerPositions = PositionDataSingleton.getInstance().getMarkerPositions();
@@ -334,16 +388,17 @@ public class MapsActivity extends AppCompatActivity
         bizCategoryColorMap.put(getResources().getString(R.string.none), BitmapDescriptorFactory.HUE_ORANGE);
         int i = 0;
         for(ToToPosition toToPosition : markerPositions) {
+            if(toToPosition.state == VISIBLE || false == TextUtils.isEmpty(toToPosition.addressData)) {
+                continue;
+            }
             String targetName = toToPosition.rawData[NAME];
             String targetBiz = toToPosition.rawData[BUSINESS];
             if(bizCategoryColorMap.containsKey(targetBiz) == false) {
                 bizCategoryColorMap.put(targetBiz, arrayPinColors[i++ % arrayPinColors.length]);
             }
             toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
-            if(TextUtils.isEmpty(toToPosition.addressData)) {
-                return;
-            }
-            LatLng targetLatLng = AddressConvert.getLatLng(this, toToPosition.addressData);
+//            LatLng targetLatLng = AddressConvert.getLatLng(this, toToPosition.addressData);
+            LatLng targetLatLng = null;
             if(targetLatLng == null) {
                 targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
             }
@@ -353,6 +408,7 @@ public class MapsActivity extends AppCompatActivity
                     .title(targetName)
                     .snippet(targetBiz)
                     .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(targetBiz))));
+            toToPosition.state = VISIBLE;
             // .icon(getMarkerIcon("#dadfsf"));
         }
     }
@@ -399,6 +455,15 @@ public class MapsActivity extends AppCompatActivity
     public boolean onMarkerClick(Marker marker) {
         DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
         mCircles.add(circle);
+//        MarkerBuilderManagerV2  myMarker = new MarkerBuilderManagerV2.Builder(this)
+//                .map(mMap)
+//                .enabled(true)
+//                .radius(200)
+//                .strokeColor(Color.RED)
+//                .fillColor(Color.TRANSPARENT)
+//                .build();
+//
+//        myMarker.onMarkerClick(marker);
 //        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
 //        intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
 //        intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
@@ -536,5 +601,138 @@ public class MapsActivity extends AppCompatActivity
         return false;
     }
 
+    public void screenShot(View view) {
+        mbitmap = getBitmapOFRootView(mScreenSaveImageView);
+//        imageView.setImageBitmap(mbitmap);
+        createImage(mbitmap);
+    }
 
+    public Bitmap getBitmapOFRootView(View v) {
+        View rootview = v.getRootView();
+        rootview.setDrawingCacheEnabled(true);
+        Bitmap bitmap1 = rootview.getDrawingCache();
+        return bitmap1;
+    }
+
+    public void createImage(Bitmap bmp) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        bmp.compress(Bitmap.CompressFormat.JPEG, 40, bytes);
+        String filename = "screenshot2.png";
+        File file = new File(this.getExternalFilesDir(null), filename);
+//        File file = new File(Environment.getExternalStorageDirectory() +
+//                "/capturedscreenandroid.jpg");
+        try {
+            file.createNewFile();
+            FileOutputStream outputStream = new FileOutputStream(file);
+            outputStream.write(bytes.toByteArray());
+            outputStream.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void screenshot (View view) throws Exception{
+
+        view.setDrawingCacheEnabled(true);
+
+        Bitmap scrreenshot = view.getDrawingCache();
+
+        String filename = "screenshot.png";
+
+        try{
+
+//            File f = new File(Environment.getEx(),filename);
+            File f = new File(this.getExternalFilesDir(null), filename);
+            f.createNewFile();
+            OutputStream outStream = new FileOutputStream(f);
+            scrreenshot.compress(Bitmap.CompressFormat.PNG, 100, outStream);
+            outStream.close();
+        }catch( IOException e){
+            e.printStackTrace();
+        }
+
+        view.setDrawingCacheEnabled(false);
+    }
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  // prefix
+                ".jpg",         // suffix
+                storageDir      // directory
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+//        mCurrentPhotoPath = "file:" + image.getAbsolutePath();
+        return image;
+    }
+
+    private class AddLoadMarkerTask extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... params) {
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+        }
+    };
+
+    @Override
+    public void onInitCreateCircle(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onInitCreateCircle " + geofenceCircle.toString());
+    }
+
+    @Override
+    public void onCircleMarkerClick(GeofenceCircle geofenceCircle) {
+        if(geofenceCircle != null) {
+            Log.d(TAG, "onCircleMarkerClick " + geofenceCircle.toString());
+        }
+    }
+
+    @Override
+    public void onCreateCircle(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onCreateCircle " + geofenceCircle.toString());
+    }
+
+    @Override
+    public void onResizeCircleEnd(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onResizeCircleEnd " + geofenceCircle.toString());
+        mRadiusText.setText(String.valueOf((long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()))));
+    }
+
+    @Override
+    public void onMoveCircleEnd(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onMoveCircleEnd " + geofenceCircle.toString());
+
+    }
+
+    @Override
+    public void onMoveCircleStart(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onMoveCircleStart " + geofenceCircle.toString());
+
+    }
+
+    @Override
+    public void onResizeCircleStart(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onResizeCircleStart " + geofenceCircle.toString());
+
+    }
+
+    @Override
+    public void onMinRadius(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onMinRadius " + geofenceCircle.toString());
+
+    }
+
+    @Override
+    public void onMaxRadius(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onMaxRadius " + geofenceCircle.toString());
+
+    }
 }
