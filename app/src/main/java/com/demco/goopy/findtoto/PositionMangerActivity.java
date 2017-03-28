@@ -308,6 +308,12 @@ public class PositionMangerActivity extends AppCompatActivity
                 onBackPressed();
                 return true;
             case R.id.action_list_save:
+                if(FileManager.saveExcelFile(this, "address2.xls")) {
+                    Toast.makeText(this, R.string.save_ok, Toast.LENGTH_SHORT).show();
+                }
+                else {
+                    Toast.makeText(this, R.string.save_fail, Toast.LENGTH_SHORT).show();
+                }
                 return true;
 
             default:

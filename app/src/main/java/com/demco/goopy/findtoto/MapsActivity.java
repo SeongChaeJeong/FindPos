@@ -397,7 +397,8 @@ public class MapsActivity extends AppCompatActivity
                 bizCategoryColorMap.put(targetBiz, arrayPinColors[i++ % arrayPinColors.length]);
             }
             toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
-            LatLng targetLatLng = AddressConvert.getLatLng(this, toToPosition.addressData);
+//            LatLng targetLatLng = AddressConvert.getLatLng(this, toToPosition.addressData);
+            LatLng targetLatLng = null;
             if(targetLatLng == null) {
                 targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
             }

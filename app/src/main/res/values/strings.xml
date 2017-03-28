@@ -21,6 +21,8 @@
     <string name="command_failed">실패하였습니다.</string>
     <string name="screenshot_failed">화면캡처를 실패하였습니다.</string>
     <string name="focus_ok">해당 지도위치로 이동합니다.</string>
+    <string name="save_ok">목록을 파일에 저장하는데 성공하였습니다.</string>
+    <string name="save_fail">목록을 파일에 저장하는데 실패하였습니다.</string>
     <string name="gps_receive_off">GPS 수신을 차단합니다.</string>
     <string name="gps_receive_on">GPS 수신을 받습니다.</string>
     <string name="error_crash">앱이 비정상 종료되었습니다. 비정상 종료 원인파악을 위해 메일을 보내주세요~!</string>
@@ -29,6 +31,17 @@
     <string name="main_circle_radius">200</string>
 
     <string name="save_position_list_to_file">위치목록을 엑셀파일에 저장합니다</string>
+    <string name="name_label">판매점명</string>
+    <string name="biz_label">업태</string>
+    <string name="chanel_label">채널구분</string>
+    <string name="address_label1">주소(시/도)</string>
+    <string name="address_label2">주소(구/군)</string>
+    <string name="address_label3">주소(동)</string>
+    <string name="address_label4">주소(번지)</string>
+    <string name="address_label5">주소(번지)2</string>
+    <string name="state_label">판매점상태</string>
+    <string name="phone_label">전화번호</string>
+
 
     <string name="search_text">검색</string>
     <string name="add_text">추가</string>

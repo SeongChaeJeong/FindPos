@@ -30,7 +30,15 @@ import java.util.Iterator;
 import java.util.List;
 
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS2;
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS3;
+import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS5;
+import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
+import static com.demco.goopy.findtoto.Data.ToToPosition.CHANNEL;
+import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
+import static com.demco.goopy.findtoto.Data.ToToPosition.PHONE;
+import static com.demco.goopy.findtoto.Data.ToToPosition.STATE;
 
 /**
  * Created by goopy on 2017-03-23.
@@ -39,7 +47,7 @@ import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS5;
 public class FileManager {
     public static int UNIQUE_INDEX = 1;
 
-    public static boolean saveExcelFile(List<ToToPosition> toToPositionList, Context context, String fileName) {
+    public static boolean saveExcelFile(Context context, String fileName) {
 
         // check if available and not read only
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly()) {
@@ -48,7 +56,7 @@ public class FileManager {
         }
 
         boolean success = false;
-
+        List<ToToPosition> toToPositionList = PositionDataSingleton.getInstance().getMarkerPositions();
         //New Workbook
         Workbook wb = new HSSFWorkbook();
 
@@ -59,28 +67,82 @@ public class FileManager {
         cs.setFillForegroundColor(HSSFColor.LIME.index);
         cs.setFillPattern(HSSFCellStyle.SOLID_FOREGROUND);
 
+
         //New Sheet
         Sheet sheet1 = null;
         sheet1 = wb.createSheet("myOrder");
-
-        // Generate column headings
-        Row row = sheet1.createRow(0);
-
-        c = row.createCell(0);
-        c.setCellValue("Item Number");
-        c.setCellStyle(cs);
-
-        c = row.createCell(1);
-        c.setCellValue("Quantity");
-        c.setCellStyle(cs);
-
-        c = row.createCell(2);
-        c.setCellValue("Price");
-        c.setCellStyle(cs);
-
         sheet1.setColumnWidth(0, (15 * 500));
         sheet1.setColumnWidth(1, (15 * 500));
         sheet1.setColumnWidth(2, (15 * 500));
+
+        Row row = sheet1.createRow(0);
+        c = row.createCell(0);
+        c.setCellValue(context.getResources().getString(R.string.name_label));
+        c.setCellStyle(cs);
+        c = row.createCell(1);
+        c.setCellValue(context.getResources().getString(R.string.biz_label));
+        c.setCellStyle(cs);
+        c = row.createCell(2);
+        c.setCellValue(context.getResources().getString(R.string.chanel_label));
+        c.setCellStyle(cs);
+        c = row.createCell(3);
+        c.setCellValue(context.getResources().getString(R.string.address_label1));
+        c.setCellStyle(cs);
+        c = row.createCell(4);
+        c.setCellValue(context.getResources().getString(R.string.address_label2));
+        c.setCellStyle(cs);
+        c = row.createCell(5);
+        c.setCellValue(context.getResources().getString(R.string.address_label3));
+        c.setCellStyle(cs);
+        c = row.createCell(6);
+        c.setCellValue(context.getResources().getString(R.string.address_label4));
+        c.setCellStyle(cs);
+        c = row.createCell(7);
+        c.setCellValue(context.getResources().getString(R.string.address_label5));
+        c.setCellStyle(cs);
+        c = row.createCell(8);
+        c.setCellValue(context.getResources().getString(R.string.state_label));
+        c.setCellStyle(cs);
+        c = row.createCell(9);
+        c.setCellValue(context.getResources().getString(R.string.phone_label));
+        c.setCellStyle(cs);
+
+        int rowIndex = 1;
+        for(ToToPosition position : toToPositionList) {
+            // Generate column headings
+            row = sheet1.createRow(rowIndex++);
+
+            c = row.createCell(0);
+            c.setCellValue(position.rawData[NAME]);
+
+            c = row.createCell(1);
+            c.setCellValue(position.rawData[BUSINESS]);
+
+            c = row.createCell(2);
+            c.setCellValue(position.rawData[CHANNEL]);
+
+            c = row.createCell(3);
+            c.setCellValue(position.addressList.get(0));
+
+            c = row.createCell(4);
+            c.setCellValue(position.addressList.get(1));
+
+            c = row.createCell(5);
+            c.setCellValue(position.addressList.get(2));
+
+            c = row.createCell(6);
+            c.setCellValue(position.addressList.get(3));
+
+            c = row.createCell(7);
+            c.setCellValue(position.addressList.get(4));
+
+            c = row.createCell(8);
+            c.setCellValue(position.rawData[STATE]);
+
+            c = row.createCell(9);
+            c.setCellValue(position.rawData[PHONE]);
+        }
+
 
         // Create a path where we will place our List of objects on external storage
         File file = new File(context.getExternalFilesDir(null), fileName);
