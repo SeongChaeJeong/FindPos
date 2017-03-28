@@ -47,7 +47,15 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".PositionMangerActivity"/>
+        <activity android:name=".PositionMangerActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+            >
+
+        </activity>
+
+        <service
+            android:name=".System.LoadData_Service" >
+        </service>
 
         <service android:name=".System.GPS_Service"/>
     </application>

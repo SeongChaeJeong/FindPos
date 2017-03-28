@@ -2,17 +2,21 @@ package com.demco.goopy.findtoto;
 
 import android.Manifest;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.LocationManager;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -31,6 +35,7 @@ import com.demco.goopy.findtoto.Data.GpsInfo;
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.System.GPS_Service;
+import com.demco.goopy.findtoto.System.LoadData_Service;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Views.CircleView;
@@ -142,7 +147,7 @@ public class MapsActivity extends AppCompatActivity
                     .center(center)
                     .radius(radiusMeters)
                     .strokeColor(Color.BLUE)
-//                    .strokeWidth(mStrokeWidthBar.getProgress())
+                    .strokeWidth(1)
 //                    .strokeColor(mStrokeColorArgb)
 //                    .fillColor(mFillColorArgb)
                     .clickable(true));
@@ -192,6 +197,7 @@ public class MapsActivity extends AppCompatActivity
         if(false == runtime_permissions()) {
             startGPSService();
         }
+
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
         mCurrentImageView= (ImageView) findViewById(R.id.gps_current);
         mCloseImageView = (ImageView) findViewById(R.id.app_close);
@@ -279,20 +285,26 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+        Intent intent = new Intent(this, LoadData_Service.class);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
         if(broadcastReceiver == null){
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
-                    if(mGPSRecevie) {
+                    if(intent.getAction().compareTo("location_update") == 0 && mGPSRecevie) {
                         double lantitute = (double)intent.getExtras().get(LATITUDE_POS);
                         double longitute = (double)intent.getExtras().get(LONGITUDE_POS);
                         markerBuilderManager.onMapClick(new LatLng(lantitute,longitute));
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(lantitute,longitute)));
                     }
+                    else if(intent.getAction().compareTo("postion_data_update") == 0) {
+                        addLoadMarkersToMap();
+                    }
                 }
             };
         }
         registerReceiver(broadcastReceiver, new IntentFilter("location_update"));
+        registerReceiver(broadcastReceiver, new IntentFilter("postion_data_update"));
     }
 
     @Override
@@ -319,9 +331,6 @@ public class MapsActivity extends AppCompatActivity
         enableMyLocation();
         setUpMyPostionMark();
         getCurrentGPSInfo();
-        loadMarkPositions();
-        addLoadMarkersToMap();
-
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnMapLongClickListener(this);
@@ -329,6 +338,32 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMarkerClickListener(this);
         mMap.setOnCircleClickListener(this);
     }
+
+//     private class TestTask extends AsyncTask<String, Void, String> {
+//
+//        @Override
+//        protected String doInBackground(String... params) {
+//            loadMarkPositions();
+//            return null;
+//        }
+//
+//        @Override
+//        protected void onPostExecute(String result) {
+//            new AddLoadMarkerTask().execute();
+//        }
+//    };
+
+    private class AddLoadMarkerTask extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... params) {
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+        }
+    };
 
     private void getCurrentGPSInfo() {
         GpsInfo gps = new GpsInfo(MapsActivity.this);
@@ -356,14 +391,32 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
+    private void startLoadDataService() {
+        Intent i = new Intent(getApplicationContext(), LoadData_Service.class);
+        startService(i);
+    }
+
     private void startGPSService() {
         Intent i = new Intent(getApplicationContext(),GPS_Service.class);
         startService(i);
     }
 
-    private void loadMarkPositions() {
-        FileManager.readExcelFile(this,"address.xls");
-    }
+    private LoadData_Service loadData_service;
+
+    private ServiceConnection mConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            LoadData_Service.MyBinder myBinder = (LoadData_Service.MyBinder) service;
+            loadData_service = myBinder.getService();
+            Toast.makeText(MapsActivity.this, "service Connected", Toast.LENGTH_SHORT).show();
+
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            loadData_service = null;
+        }
+    };
 
     private void addLoadMarkersToMap() {
         markerPositions = PositionDataSingleton.getInstance().getMarkerPositions();
