@@ -86,7 +86,7 @@ public class PositionMangerActivity extends AppCompatActivity
         dataset = PositionDataSingleton.getInstance().getMarkerPositions();
         if(dataset.isEmpty()) {
             setContentView(R.layout.empty_list_view);
-            String filePath = getExternalFilesDir(null) + "address.xls" + getString(R.string.check_file);
+            String filePath = getExternalFilesDir(null) + "/address.xls" + getString(R.string.check_file);
             ((TextView)findViewById(R.id.empty_alert)).setText(filePath);
             return;
         }
