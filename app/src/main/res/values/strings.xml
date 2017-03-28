@@ -25,6 +25,8 @@
     <string name="gps_receive_on">GPS 수신을 받습니다.</string>
     <string name="error_crash">앱이 비정상 종료되었습니다. 비정상 종료 원인파악을 위해 메일을 보내주세요~!</string>
 
+    <string name="main_circle_label">범위(m): </string>
+    <string name="main_circle_radius">200</string>
 
     <string name="save_position_list_to_file">위치목록을 엑셀파일에 저장합니다</string>
 

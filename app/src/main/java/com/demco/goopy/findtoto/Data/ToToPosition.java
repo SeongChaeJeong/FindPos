@@ -20,7 +20,12 @@ public class ToToPosition {
     public static int PHONE = 9;
     public static int LAST_INDEX = 10;
 
+    public static int NONE = 0;
+    public static int VISIBLE = 1;
+    public static int MDDIFY = 2;
+
     public int uniqueId = 0;
+    public int state = NONE;
     public List<String> addressList = new ArrayList<>();
     public String[] rawData = new String[LAST_INDEX];
     public String addressData = null;

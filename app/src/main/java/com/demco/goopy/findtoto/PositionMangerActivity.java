@@ -40,11 +40,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static android.icu.lang.UScript.MODI;
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
 import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
 import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
 import static com.demco.goopy.findtoto.Data.ToToPosition.LAST_INDEX;
+import static com.demco.goopy.findtoto.Data.ToToPosition.MDDIFY;
 import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
+import static com.demco.goopy.findtoto.Data.ToToPosition.NONE;
 import static com.demco.goopy.findtoto.MapsActivity.RESULT_ITEM_SELECT;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
@@ -227,6 +230,7 @@ public class PositionMangerActivity extends AppCompatActivity
                 }
 
                 newPosition.uniqueId = ++FileManager.UNIQUE_INDEX;
+                newPosition.state = NONE;
                 dataset.add(newPosition);
                 mAdapter.notifyDataSetChanged();
                 Toast.makeText(this, R.string.add_ok, Toast.LENGTH_SHORT).show();
@@ -251,6 +255,7 @@ public class PositionMangerActivity extends AppCompatActivity
                 selectedItem.rawData[BUSINESS] = bizText.getText().toString();
                 Toast.makeText(this, R.string.modify_ok, Toast.LENGTH_SHORT).show();
                 initEditText();
+                selectedItem.state = MDDIFY;
                 mAdapter.notifyDataSetChanged();
                 break;
             case R.id.delete_btn:
