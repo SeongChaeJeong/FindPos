@@ -12,6 +12,7 @@ import com.google.android.gms.vision.barcode.Barcode;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Created by goopy on 2017-03-23.
@@ -25,7 +26,7 @@ public class AddressConvert {
      * 주소로부터 위치정보 취득
      * @param address 주소
      */
-    public static LatLng getLatLng(Context mContext, String address) {
+    public static LatLng getLatLng(Context mContext, String address) throws TimeoutException {
         Geocoder geocoder = new Geocoder(mContext);
         Address addr;
         Barcode.GeoPoint location = null;
@@ -39,8 +40,8 @@ public class AddressConvert {
             }
         } catch (IOException e) {
             e.printStackTrace();
+            throw new TimeoutException();
         }
-        return null;
     }
     /**
      * 위도,경도로 주소구하기
@@ -56,9 +57,14 @@ public class AddressConvert {
             if (geocoder != null) {
                 //세번째 파라미터는 좌표에 대해 주소를 리턴 받는 갯수로
                 //한좌표에 대해 두개이상의 이름이 존재할수있기에 주소배열을 리턴받기 위해 최대갯수 설정
-                address = geocoder.getFromLocation(lat, lng, 1);
+                address = geocoder.getFromLocation(lat, lng, 3);
 
-                if (address != null && address.size() > 0) {
+
+                if (address != null && address.size() > 1) {
+                    String currentLocationAddress = address.get(1).getAddressLine(0).toString();
+                    nowAddress  = currentLocationAddress;
+                }
+                else if (address != null && address.size() > 0) {
                     // 주소 받아오기
                     String currentLocationAddress = address.get(0).getAddressLine(0).toString();
                     nowAddress  = currentLocationAddress;

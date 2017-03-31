@@ -7,6 +7,9 @@ import org.acra.ACRA;
 import org.acra.ReportingInteractionMode;
 import org.acra.annotation.ReportsCrashes;
 
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
+
 /**
  * Created by goopy on 2017-03-27.
  */
@@ -21,5 +24,7 @@ public class MyApplication extends MultiDexApplication {
     public void onCreate() {
         super.onCreate();
 //        ACRA.init(this);
+        RealmConfiguration config = new RealmConfiguration.Builder(this).build();
+        Realm.setDefaultConfiguration(config);
     }
 }

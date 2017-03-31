@@ -5,17 +5,35 @@ android {
     buildToolsVersion "25.0.2"
     defaultConfig {
         applicationId "com.demco.goopy.findtoto"
-        minSdkVersion 19
+        minSdkVersion 16
         targetSdkVersion 25
-        versionCode 1
-        versionName "1.0.0"
+        versionCode 101
+        versionName "1.0.1"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        multiDexEnabled true
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+
+    productFlavors {
+        // multidex 때문에 느려지니 dev 때에는 그냥 롤리팝 이상으로 했다.
+        // https://developer.android.com/studio/build/multidex.html#dev-build
+        dev {
+            minSdkVersion 22
+        }
+        prod {
+            minSdkVersion 14
+        }
+    }
+
+
+    dexOptions {
+        javaMaxHeapSize = "4g"
+        preDexLibraries = false
     }
 }
 
@@ -24,6 +42,7 @@ repositories {
         url "https://jitpack.io"
     }
 }
+
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
@@ -37,10 +56,11 @@ dependencies {
     compile 'com.android.support:recyclerview-v7:25.+'
     compile 'com.github.ac-opensource:MarkerBuilder:v1.0.0'
     compile 'com.afollestad.material-dialogs:core:0.9.4.2'
+//    classpath "io.realm:realm-gradle-plugin:3.0.0"
 
     // https://mvnrepository.com/artifact/org.apache.poi/poi
     compile group: 'org.apache.poi', name: 'poi', version: '3.9'
     compile 'ch.acra:acra:4.9.0'
 
-    testCompile 'junit:junit:4.12'
 }
+apply plugin: 'realm-android'

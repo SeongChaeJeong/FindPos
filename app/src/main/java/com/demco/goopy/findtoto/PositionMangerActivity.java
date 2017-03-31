@@ -1,18 +1,16 @@
 package com.demco.goopy.findtoto;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -28,8 +26,11 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.DialogAction;
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
+import com.demco.goopy.findtoto.Data.ToToPositionRealmObj;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Utils.KoreanTextMatch;
@@ -37,16 +38,13 @@ import com.demco.goopy.findtoto.Utils.KoreanTextMatcher;
 import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
-import static android.icu.lang.UScript.MODI;
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
-import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
-import static com.demco.goopy.findtoto.Data.ToToPosition.LAST_INDEX;
+import io.realm.Realm;
+
 import static com.demco.goopy.findtoto.Data.ToToPosition.MDDIFY;
-import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
 import static com.demco.goopy.findtoto.Data.ToToPosition.NONE;
 import static com.demco.goopy.findtoto.MapsActivity.RESULT_ITEM_SELECT;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
@@ -72,8 +70,9 @@ public class PositionMangerActivity extends AppCompatActivity
     private List<String> bizCategoryList = new ArrayList<>();
     private double focusLatitude = defaultLatitude;
     private double focusLongitude = defaultLongitude;
+    private ToToPosition selectedItem = null;
 
-    private int selectItemUniqeId = 0;
+    private String selectItemUniqeId;
     Toolbar myToolbar = null;
     EditText searchText = null;
     EditText titleText = null;
@@ -84,17 +83,12 @@ public class PositionMangerActivity extends AppCompatActivity
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         dataset = PositionDataSingleton.getInstance().getMarkerPositions();
-        if(dataset.isEmpty()) {
-            setContentView(R.layout.empty_list_view);
-            String filePath = getExternalFilesDir(null) + "/address.xls" + getString(R.string.check_file);
-            ((TextView)findViewById(R.id.empty_alert)).setText(filePath);
-            return;
-        }
+        PositionDataSingleton.getInstance().setGPSRecevie(false);
 
         bizCategoryList.clear();
         bizCategoryList.add(getResources().getString(R.string.none));
         for(ToToPosition position: dataset) {
-            String bizCategory = position.rawData[BUSINESS];
+            String bizCategory = position.biz;
             if(-1 == bizCategoryList.indexOf(bizCategory)) {
                 bizCategoryList.add(bizCategory);
             }
@@ -108,6 +102,21 @@ public class PositionMangerActivity extends AppCompatActivity
                 focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
                 focusLongitude = bundle.getDouble(LONGITUDE_POS, defaultLongitude);
             }
+        }
+
+        if(isDefaultLatLng() && dataset.isEmpty()) {
+            setContentView(R.layout.empty_list_view);
+            myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
+            setSupportActionBar(myToolbar);
+            getSupportActionBar().setDisplayShowTitleEnabled(true);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeButtonEnabled(true);
+            getSupportActionBar().setTitle(R.string.position_list_title);
+            getSupportActionBar().setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.toolbarColor)));
+
+            String filePath = getExternalFilesDir(null) + "/address.xls" + getString(R.string.check_file);
+            ((TextView)findViewById(R.id.empty_alert)).setText(filePath);
+            return;
         }
 
         myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
@@ -172,11 +181,15 @@ public class PositionMangerActivity extends AppCompatActivity
         mRecyclerView.setAdapter(mAdapter);
     }
 
+    private boolean isDefaultLatLng() {
+        return focusLatitude == defaultLatitude && focusLongitude == defaultLongitude;
+    }
+
     @Override
     public void onClick(View v) {
-        ToToPosition selectedItem = null;
+        selectedItem = null;
         for(ToToPosition position: dataset) {
-            if(position.uniqueId == selectItemUniqeId) {
+            if(position.uniqueId.compareTo(selectItemUniqeId) == 0) {
                 selectedItem = position;
                 break;
             }
@@ -191,8 +204,11 @@ public class PositionMangerActivity extends AppCompatActivity
                 String titleData = searchText.getText().toString();
                 KoreanTextMatcher matcher = new KoreanTextMatcher(titleData);
                 for(ToToPosition positionData : dataset) {
-                    KoreanTextMatch match = matcher.match(positionData.rawData[NAME]);
-                    if (match.success()) {
+                    KoreanTextMatch match = matcher.match(positionData.name);
+                    if(0 == titleData.compareTo(positionData.addressData.toString())) {
+                        searchResultdataset.add(positionData);
+                    }
+                    else if (match.success()) {
                         searchResultdataset.add(positionData);
                     }
                 }
@@ -210,77 +226,202 @@ public class PositionMangerActivity extends AppCompatActivity
                     Toast.makeText(this, R.string.empty_address_result, Toast.LENGTH_SHORT).show();
                     return;
                 }
-                ToToPosition newPosition = new ToToPosition();
-                // 토큰해서 각각주소에 넣기
-                String[] splitAddress = TextUtils.split(addressText.getText().toString(), " ");
-                newPosition.addressList.clear();
-                for(int i = 0; i < splitAddress.length; ++i) {
-                    if(getString(R.string.korea).compareToIgnoreCase(splitAddress[i]) == 0) {
-                        continue;
-                    }
-                    newPosition.addressList.add(splitAddress[i]);
-                }
-                newPosition.addressData = TextUtils.join(" ", newPosition.addressList);
-                newPosition.rawData[NAME] = titleText.getText().toString();
-                newPosition.rawData[BUSINESS] = bizText.getText().toString();
 
-                String bizCategory = bizText.getText().toString();
-                if(bizCategoryList.indexOf(bizCategory) == -1) {
-                    bizCategoryList.add(bizCategory);
-                }
+                new MaterialDialog.Builder(PositionMangerActivity.this)
+                        .content(R.string.add_content)
+                        .positiveText(R.string.agree)
+                        .negativeText(R.string.disagree)
+                        .backgroundColorRes(R.color.white)
+                        .positiveColorRes(R.color.dialogBtnColor)
+                        .negativeColorRes(R.color.dialogBtnColor)
+                        .contentColorRes(R.color.black)
+                        .onPositive(new MaterialDialog.SingleButtonCallback() {
+                            @Override
+                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                                ToToPosition newPosition = new ToToPosition();
+                                // 토큰해서 각각주소에 넣기
+                                String[] splitAddress = TextUtils.split(addressText.getText().toString(), " ");
+                                newPosition.state = NONE;
+                                newPosition.addressList.clear();
+                                for(int i = 0; i < splitAddress.length; ++i) {
+                                    if(getString(R.string.korea).compareToIgnoreCase(splitAddress[i]) == 0) {
+                                        continue;
+                                    }
+                                    newPosition.addressList.add(splitAddress[i]);
+                                }
+                                newPosition.addressData = TextUtils.join(" ", newPosition.addressList);
+                                newPosition.name = titleText.getText().toString();
+                                newPosition.biz = bizText.getText().toString();
 
-                newPosition.uniqueId = ++FileManager.UNIQUE_INDEX;
-                newPosition.state = NONE;
-                dataset.add(newPosition);
-                mAdapter.notifyDataSetChanged();
-                Toast.makeText(this, R.string.add_ok, Toast.LENGTH_SHORT).show();
-                initEditText();
+                                String bizCategory = bizText.getText().toString();
+                                if(bizCategoryList.indexOf(bizCategory) == -1) {
+                                    bizCategoryList.add(bizCategory);
+                                }
+
+                                newPosition.uniqueId = UUID.randomUUID().toString();
+
+                                Realm realm = Realm.getDefaultInstance();
+                                realm.beginTransaction();
+                                ToToPositionRealmObj obj = new ToToPositionRealmObj();
+                                obj.addressData = newPosition.addressData;
+                                obj.uniqueId = newPosition.uniqueId;
+                                obj.targetName = newPosition.name;
+                                obj.targetBiz = newPosition.biz;
+                                obj.phone = newPosition.phone;
+                                obj.bizState = newPosition.bizState;
+                                LatLng targetLatLng = null;
+                                try {
+                                    targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, newPosition.addressData);
+                                }
+                                catch(TimeoutException e) {
+                                    targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                                }
+                                if(targetLatLng == null) {
+                                    targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                                }
+                                obj.latitude = targetLatLng.latitude;
+                                obj.longtitude = targetLatLng.longitude;
+
+                                realm.commitTransaction();
+                                dataset.add(newPosition);
+                                mAdapter.notifyDataSetChanged();
+                                Toast.makeText(PositionMangerActivity.this, R.string.add_ok, Toast.LENGTH_SHORT).show();
+                                initEditText();
+                            }
+                        })
+                        .onNegative(new MaterialDialog.SingleButtonCallback() {
+                            @Override
+                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                            }
+                        })
+                        .show();
+
                 break;
             case R.id.modify_btn:
                 if(selectedItem == null) {
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
                     break;
                 }
-                // 토큰해서 각각주소에 넣기
-                String[] splitAddressModify = TextUtils.split(addressText.getText().toString(), " ");
-                selectedItem.addressList.clear();
-                for(int i = 0; i < splitAddressModify.length; ++i) {
-                    if(getString(R.string.korea).compareToIgnoreCase(splitAddressModify[i]) == 0) {
-                        continue;
-                    }
-                    selectedItem.addressList.add(splitAddressModify[i]);
-                }
-                selectedItem.addressData = TextUtils.join(" ", selectedItem.addressList);
-                selectedItem.rawData[NAME] = titleText.getText().toString();
-                selectedItem.rawData[BUSINESS] = bizText.getText().toString();
-                Toast.makeText(this, R.string.modify_ok, Toast.LENGTH_SHORT).show();
-                initEditText();
-                selectedItem.state = MDDIFY;
-                mAdapter.notifyDataSetChanged();
+
+                new MaterialDialog.Builder(PositionMangerActivity.this)
+                        .content(R.string.modify_content)
+                        .positiveText(R.string.agree)
+                        .negativeText(R.string.disagree)
+                        .backgroundColorRes(R.color.white)
+                        .positiveColorRes(R.color.dialogBtnColor)
+                        .negativeColorRes(R.color.dialogBtnColor)
+                        .contentColorRes(R.color.black)
+                        .onPositive(new MaterialDialog.SingleButtonCallback() {
+                            @Override
+                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                                // 토큰해서 각각주소에 넣기
+                                String[] splitAddressModify = TextUtils.split(addressText.getText().toString(), " ");
+                                selectedItem.state = MDDIFY;
+                                selectedItem.addressList.clear();
+                                for(int i = 0; i < splitAddressModify.length; ++i) {
+                                    if(getString(R.string.korea).compareToIgnoreCase(splitAddressModify[i]) == 0) {
+                                        continue;
+                                    }
+                                    selectedItem.addressList.add(splitAddressModify[i]);
+                                }
+                                selectedItem.addressData = TextUtils.join(" ", selectedItem.addressList);
+                                selectedItem.name = titleText.getText().toString();
+                                selectedItem.biz = bizText.getText().toString();
+                                Toast.makeText(PositionMangerActivity.this, R.string.modify_ok, Toast.LENGTH_SHORT).show();
+                                initEditText();
+                                Realm realm = Realm.getDefaultInstance();
+                                realm.beginTransaction();
+                                ToToPositionRealmObj obj = realm.where(ToToPositionRealmObj.class).equalTo("uniqueId", selectedItem.uniqueId).findFirst();
+                                if(null != obj) {
+                                    obj.addressData = selectedItem.addressData;
+                                    obj.uniqueId = selectedItem.uniqueId;
+                                    obj.targetName = selectedItem.name;
+                                    obj.targetBiz = selectedItem.biz;
+                                    obj.phone = selectedItem.phone;
+                                    obj.bizState = selectedItem.bizState;
+                                    LatLng targetLatLng = null;
+                                    try {
+                                        targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, selectedItem.addressData);
+                                    }
+                                    catch(TimeoutException e) {
+                                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                                    }
+                                    if(targetLatLng == null) {
+                                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                                    }
+                                    obj.latitude = targetLatLng.latitude;
+                                    obj.longtitude = targetLatLng.longitude;
+                                }
+                                realm.commitTransaction();
+
+                                mAdapter.notifyDataSetChanged();
+                            }
+                        })
+                        .onNegative(new MaterialDialog.SingleButtonCallback() {
+                            @Override
+                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                            }
+                        })
+                        .show();
+
                 break;
             case R.id.delete_btn:
                 if(selectedItem == null) {
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
                     break;
                 }
-                dataset.remove(selectedItem);
-                initEditText();
-                mAdapter.notifyDataSetChanged();
-                Toast.makeText(this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
+
+                new MaterialDialog.Builder(PositionMangerActivity.this)
+                        .content(R.string.del_content)
+                        .positiveText(R.string.agree)
+                        .negativeText(R.string.disagree)
+                        .backgroundColorRes(R.color.white)
+                        .positiveColorRes(R.color.dialogBtnColor)
+                        .negativeColorRes(R.color.dialogBtnColor)
+                        .contentColorRes(R.color.black)
+                        .onPositive(new MaterialDialog.SingleButtonCallback() {
+                            @Override
+                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                                dataset.remove(selectedItem);
+                                initEditText();
+
+                                Realm realm = Realm.getDefaultInstance();
+                                realm.beginTransaction();
+                                ToToPositionRealmObj obj = realm.where(ToToPositionRealmObj.class).equalTo("uniqueId", selectedItem.uniqueId).findFirst();
+                                obj.deleteFromRealm();
+                                realm.commitTransaction();
+
+                                mAdapter.notifyDataSetChanged();
+                                Toast.makeText(PositionMangerActivity.this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
+                            }
+
+                        })
+                        .onNegative(new MaterialDialog.SingleButtonCallback() {
+                            @Override
+                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                            }
+                        })
+                        .show();
                 break;
             case R.id.focus_map_btn:
                 if(selectedItem == null) {
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
                     break;
                 }
-                LatLng targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, selectedItem.addressData);
-                if(targetLatLng == null) {
+                LatLng targetLatLng = null;
+                try {
+                    targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, selectedItem.addressData);
+                    if(targetLatLng == null) {
+                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                    }
+                }
+                catch(TimeoutException e) {
                     targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
                 }
                 Intent intent = new Intent();
                 intent.putExtra(LATITUDE_POS, targetLatLng.latitude);
                 intent.putExtra(LONGITUDE_POS, targetLatLng.longitude);
-                Toast.makeText(this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
+                Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
                 setResult(RESULT_ITEM_SELECT, intent);
                 finish();
         }
@@ -308,7 +449,12 @@ public class PositionMangerActivity extends AppCompatActivity
                 onBackPressed();
                 return true;
             case R.id.action_list_save:
-                if(FileManager.saveExcelFile(this, "address2.xls")) {
+                List<ToToPosition> toToPositionList = PositionDataSingleton.getInstance().getMarkerPositions();
+                if(toToPositionList.isEmpty()) {
+                    Toast.makeText(this, R.string.list_empty, Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                if(FileManager.saveExcelFile(this, "address.xls")) {
                     Toast.makeText(this, R.string.save_ok, Toast.LENGTH_SHORT).show();
                 }
                 else {
@@ -340,11 +486,11 @@ public class PositionMangerActivity extends AppCompatActivity
         @Override
         public void onBindViewHolder(CustomViewHolder customViewHolder, int i) {
             final ToToPosition toToPosition = feedItemList.get(i);
-            if(TextUtils.isEmpty(toToPosition.rawData[NAME]) == false) {
-                customViewHolder.marketTitle.setText(toToPosition.rawData[NAME]);
+            if(TextUtils.isEmpty(toToPosition.name) == false) {
+                customViewHolder.marketTitle.setText(toToPosition.name);
             }
-            if(TextUtils.isEmpty(toToPosition.rawData[BUSINESS]) == false) {
-                customViewHolder.marketCategory.setText(toToPosition.rawData[BUSINESS]);
+            if(TextUtils.isEmpty(toToPosition.biz) == false) {
+                customViewHolder.marketCategory.setText(toToPosition.biz);
             }
             if(TextUtils.isEmpty(toToPosition.addressData) == false) {
                 customViewHolder.marketAddress.setText(toToPosition.addressData);
@@ -354,10 +500,10 @@ public class PositionMangerActivity extends AppCompatActivity
                 @Override
                 public void onClick(View v) {
                     selectItemUniqeId = toToPosition.uniqueId;
-                    titleText.setText(toToPosition.rawData[NAME]);
-                    bizText.setText(toToPosition.rawData[BUSINESS]);
+                    titleText.setText(toToPosition.name);
+                    bizText.setText(toToPosition.biz);
                     addressText.setText(toToPosition.addressData);
-                    int categoryIndex = bizCategoryList.indexOf(toToPosition.rawData[BUSINESS]);
+                    int categoryIndex = bizCategoryList.indexOf(toToPosition.biz);
                     if(-1 != categoryIndex) {
                         s.setSelection(categoryIndex);
                     }

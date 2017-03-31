@@ -2,12 +2,14 @@ package com.demco.goopy.findtoto.Utils;
 
 import android.content.Context;
 import android.os.Environment;
+import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.R;
+import com.google.android.gms.maps.model.LatLng;
 
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFCellStyle;
@@ -28,27 +30,47 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeoutException;
 
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS2;
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS3;
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS5;
-import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
-import static com.demco.goopy.findtoto.Data.ToToPosition.CHANNEL;
-import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
-import static com.demco.goopy.findtoto.Data.ToToPosition.PHONE;
-import static com.demco.goopy.findtoto.Data.ToToPosition.STATE;
+import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
+import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
 
 /**
  * Created by goopy on 2017-03-23.
  */
 
 public class FileManager {
-    public static int UNIQUE_INDEX = 1;
+
+    public static int NAME = 0;
+    public static int BUSINESS = 1;
+    public static int CHANNEL = 2;
+    public static int ADDRESS1 = 3;
+    public static int ADDRESS2 = 4;
+    public static int ADDRESS3 = 5;
+    public static int ADDRESS4 = 6;
+    public static int ADDRESS5 = 7;
+    public static int BIZSTATE = 8;
+    public static int PHONE = 9;
+    public static int LAST_INDEX = 10;
+
+
+    public static final String RECEIVEFILE_DIR = "/Demco";
+    public static final String RECEIVEFILE_FOLDER_FULLPATH = Environment.getExternalStorageDirectory().getAbsolutePath() + RECEIVEFILE_DIR;
+
+    public static File createDirIfNotExistsDir(String path) {
+        File file = new File(path);
+        if (!file.exists()) {
+            if (!file.mkdirs()) {
+//                Toast.makeText(t"Problem creating Image folder");
+            }
+        }
+        return file;
+    }
 
     public static boolean saveExcelFile(Context context, String fileName) {
 
+        File destDir = createDirIfNotExistsDir(RECEIVEFILE_FOLDER_FULLPATH);
         // check if available and not read only
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly()) {
             Log.w("FileUtils", "Storage not available or read only");
@@ -70,7 +92,7 @@ public class FileManager {
 
         //New Sheet
         Sheet sheet1 = null;
-        sheet1 = wb.createSheet("myOrder");
+        sheet1 = wb.createSheet("totoList");
         sheet1.setColumnWidth(0, (15 * 500));
         sheet1.setColumnWidth(1, (15 * 500));
         sheet1.setColumnWidth(2, (15 * 500));
@@ -113,39 +135,34 @@ public class FileManager {
             row = sheet1.createRow(rowIndex++);
 
             c = row.createCell(0);
-            c.setCellValue(position.rawData[NAME]);
+            c.setCellValue(position.name);
 
             c = row.createCell(1);
-            c.setCellValue(position.rawData[BUSINESS]);
+            c.setCellValue(position.biz);
 
             c = row.createCell(2);
-            c.setCellValue(position.rawData[CHANNEL]);
+            c.setCellValue(position.channel);
 
-            c = row.createCell(3);
-            c.setCellValue(position.addressList.get(0));
-
-            c = row.createCell(4);
-            c.setCellValue(position.addressList.get(1));
-
-            c = row.createCell(5);
-            c.setCellValue(position.addressList.get(2));
-
-            c = row.createCell(6);
-            c.setCellValue(position.addressList.get(3));
-
-            c = row.createCell(7);
-            c.setCellValue(position.addressList.get(4));
+            for(int i = 0; i < 5; ++i) {
+                c = row.createCell(i + 3);
+                if(i < position.addressList.size()) {
+                    c.setCellValue(position.addressList.get(i));
+                }
+                else {
+                    c.setCellValue("");
+                }
+            }
 
             c = row.createCell(8);
-            c.setCellValue(position.rawData[STATE]);
+            c.setCellValue(position.bizState);
 
             c = row.createCell(9);
-            c.setCellValue(position.rawData[PHONE]);
+            c.setCellValue(position.phone);
         }
 
 
         // Create a path where we will place our List of objects on external storage
-        File file = new File(context.getExternalFilesDir(null), fileName);
+        File file = new File(destDir, fileName);
         FileOutputStream os = null;
 
         try {
@@ -178,10 +195,11 @@ public class FileManager {
         }
 
         List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
+        File destDir = createDirIfNotExistsDir(RECEIVEFILE_FOLDER_FULLPATH);
 
         try{
             // Creating Input Stream
-            File file = new File(context.getExternalFilesDir(null), filename);
+            File file = new File(destDir, filename);
             FileInputStream myInput = new FileInputStream(file);
 
             // Create a POIFSFileSystem object
@@ -201,12 +219,17 @@ public class FileManager {
             }
 
             positionList.clear();
+            boolean timeoutError = false;
             while(rowIter.hasNext()){
+                String[] rawData = new String[LAST_INDEX];
+                for(int i = 0; i < LAST_INDEX; ++i) {
+                    rawData[i] = "";
+                }
                 HSSFRow myRow = (HSSFRow) rowIter.next();
                 Iterator<Cell> cellIter = myRow.cellIterator();
                 int i = 0;
                 ToToPosition toToPosition = new ToToPosition();
-                toToPosition.uniqueId = ++UNIQUE_INDEX;
+                toToPosition.uniqueId = UUID.randomUUID().toString();
                 while(cellIter.hasNext()){
                     HSSFCell myCell = (HSSFCell) cellIter.next();
                     if(ADDRESS1 <= i && i <= ADDRESS5) {
@@ -214,10 +237,33 @@ public class FileManager {
                         i++;
                     }
                     else {
-                        toToPosition.rawData[i++] = myCell.toString();
+                        rawData[i++] = myCell.toString();
                     }
                     Log.d("FileUtils", "Cell Value: " +  myCell.toString());
                 }
+                toToPosition.name = rawData[NAME];
+                toToPosition.biz = rawData[BUSINESS];
+                toToPosition.channel = rawData[CHANNEL];
+                toToPosition.bizState = rawData[BIZSTATE];
+                toToPosition.phone = rawData[PHONE];
+                toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
+                LatLng targetLatLng = null;
+                try {
+                    if(timeoutError) {
+                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                    }
+                    else {
+                        targetLatLng = AddressConvert.getLatLng(context, toToPosition.addressData);
+                        if(targetLatLng == null) {
+                            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                        }
+                    }
+                }
+                catch(TimeoutException e) {
+                    timeoutError = true;
+                    targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                }
+                toToPosition.latLng = targetLatLng;
                 positionList.add(toToPosition);
             }
         }catch (Exception e){

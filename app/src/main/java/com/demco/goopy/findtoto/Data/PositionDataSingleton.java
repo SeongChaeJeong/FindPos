@@ -10,6 +10,7 @@ import java.util.List;
 public class PositionDataSingleton {
     private static PositionDataSingleton mInstance = null;
 
+    private boolean GPSRecevie = true;
     private List<ToToPosition> markerPositions = null;
 
     private PositionDataSingleton() {
@@ -25,5 +26,13 @@ public class PositionDataSingleton {
 
     public List<ToToPosition> getMarkerPositions() {
         return markerPositions;
+    }
+
+    public boolean isGPSRecevie() {
+        return GPSRecevie;
+    }
+
+    public void setGPSRecevie(boolean GPSRecevie) {
+        this.GPSRecevie = GPSRecevie;
     }
 }

@@ -1,6 +1,7 @@
 package com.demco.goopy.findtoto;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -26,6 +27,7 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,11 +40,11 @@ import com.afollestad.materialdialogs.MaterialDialog;
 import com.demco.goopy.findtoto.Data.GpsInfo;
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
+import com.demco.goopy.findtoto.Data.ToToPositionRealmObj;
 import com.demco.goopy.findtoto.System.GPS_Service;
 import com.demco.goopy.findtoto.System.LoadData_Service;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
-import com.demco.goopy.findtoto.Views.CircleView;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -55,8 +57,6 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-import org.apache.poi.hssf.util.HSSFColor;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -68,11 +68,14 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS1;
-import static com.demco.goopy.findtoto.Data.ToToPosition.ADDRESS4;
-import static com.demco.goopy.findtoto.Data.ToToPosition.BUSINESS;
-import static com.demco.goopy.findtoto.Data.ToToPosition.NAME;
+import io.realm.DynamicRealm;
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
+import io.realm.RealmMigration;
+import io.realm.RealmResults;
+
 import static com.demco.goopy.findtoto.Data.ToToPosition.VISIBLE;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
@@ -89,6 +92,7 @@ public class MapsActivity extends AppCompatActivity
         CircleManagerListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
 
+    private static final int DATABASE_VERSION = 1;
     public static String TAG = "MapsActivity";
     private ImageView mSearchImageView;
     private ImageView mCloseImageView;
@@ -101,7 +105,8 @@ public class MapsActivity extends AppCompatActivity
     private LocationManager manager;
     private BroadcastReceiver broadcastReceiver;
 
-    private static final float DEFAULT_ZOOM = 14.0f;
+    private static final float DEFAULT_ZOOM = 28.0f;
+    private static final int DEFAULT_MIN_RADIUS_METERS = 50;
     private static final double DEFAULT_RADIUS_METERS = 200;
     private MarkerBuilderManagerV2 markerBuilderManager;
 
@@ -110,10 +115,12 @@ public class MapsActivity extends AppCompatActivity
     public static final int REQUEST_SEARCH = 3;
     public static final double defaultLatitude = 37.566660;
     public static final double defaultLongitude = 126.978418;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
     private List<Marker> markerLocations = new ArrayList<>();
-    private List<ToToPosition> markerPositions = null;
+    private Map<String, DraggableCircle> markerCircleMap = new HashMap<>();
+    private List<ToToPosition> totoPositions = null;
     private Map<String, Float> bizCategoryColorMap = new HashMap<>();
     private View capView;
     private ViewGroup mainLayout;
@@ -141,20 +148,31 @@ public class MapsActivity extends AppCompatActivity
                     .center(center)
                     .radius(radiusMeters)
                     .strokeColor(Color.BLUE)
-                    .strokeWidth(1)
+                    .strokeWidth(5)
 //                    .strokeColor(mStrokeColorArgb)
 //                    .fillColor(mFillColorArgb)
                     .clickable(true));
         }
 
+        public void remove() {
+            mCircle.remove();
+        }
+
         public void setClickable(boolean clickable) {
-            Toast.makeText(MapsActivity.this, "setClickable", Toast.LENGTH_SHORT).show();
+//            Toast.makeText(MapsActivity.this, "setClickable", Toast.LENGTH_SHORT).show();
             mCircle.setClickable(clickable);
         }
     }
 
+    RealmMigration migration = new RealmMigration() {
 
-    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
+        @Override
+        public void migrate(DynamicRealm realm, long oldVersion, long newVersion) {
+
+        }
+    };
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -163,7 +181,20 @@ public class MapsActivity extends AppCompatActivity
         if(false == runtime_permissions()) {
             startGPSService();
         }
-        startLoadDataService();
+        mGPSRecevie = true;
+
+        RealmConfiguration realmConfiguration = new RealmConfiguration.Builder(this)
+                .name(Realm.DEFAULT_REALM_NAME)
+                .deleteRealmIfMigrationNeeded()
+                .build();
+        Realm.setDefaultConfiguration(realmConfiguration);
+
+        PositionDataSingleton.getInstance().setGPSRecevie(true);
+        if(loadPositionDataFromDB() == false) {
+            new AddLoadMarkerTask().execute();
+//            startLoadDataService();
+        }
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mRadiusText = (TextView) findViewById(R.id.main_circle_text);
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
         mCurrentImageView= (ImageView) findViewById(R.id.gps_current);
@@ -187,6 +218,7 @@ public class MapsActivity extends AppCompatActivity
                     Toast.makeText(MapsActivity.this, R.string.gps_receive_on, Toast.LENGTH_SHORT).show();
                 }
                 mGPSRecevie = true;
+                PositionDataSingleton.getInstance().setGPSRecevie(true);
                 getCurrentGPSInfo();
             }
         });
@@ -194,28 +226,33 @@ public class MapsActivity extends AppCompatActivity
         mCloseImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                new MaterialDialog.Builder(MapsActivity.this)
-                        .content(R.string.close_content)
-                        .positiveText(R.string.agree)
-                        .negativeText(R.string.disagree)
-                        .backgroundColorRes(R.color.white)
-                        .positiveColorRes(R.color.dialogBtnColor)
-                        .negativeColorRes(R.color.dialogBtnColor)
-                        .contentColorRes(R.color.black)
-                        .onPositive(new MaterialDialog.SingleButtonCallback() {
-                            @Override
-                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                                finish();
-                            }
-                        })
-                        .onNegative(new MaterialDialog.SingleButtonCallback() {
-                            @Override
-                            public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                            }
-                        })
-                        .show();
+                if(markerLocations.isEmpty()) {
+                    Toast.makeText(MapsActivity.this, R.string.no_remove_marker, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                int lastIndex = markerLocations.size() - 1;
+                Marker lastMarker = markerLocations.get(lastIndex);
+                if(null != lastMarker) {
+                    if(markerCircleMap.containsKey(lastMarker.getId())) {
+                        DraggableCircle circle = markerCircleMap.get(lastMarker.getId());
+                        circle.remove();
+                        markerCircleMap.remove(lastMarker.getId());
+                    }
+                    markerLocations.remove(lastMarker);
+                    lastMarker.remove();
+                }
             }
         });
+
+        // 추후에 자동화 할때 필요
+        mGpsOffImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mGPSRecevie = false;
+                Toast.makeText(MapsActivity.this, R.string.gps_receive_off, Toast.LENGTH_SHORT).show();
+            }
+        });
+
 
         mScreenSaveImageView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -237,14 +274,6 @@ public class MapsActivity extends AppCompatActivity
         });
 
 
-        // 추후에 자동화 할때 필요
-        mGpsOffImageView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mGPSRecevie = false;
-                Toast.makeText(MapsActivity.this, R.string.gps_receive_off, Toast.LENGTH_SHORT).show();
-            }
-        });
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -260,6 +289,7 @@ public class MapsActivity extends AppCompatActivity
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
+                    mGPSRecevie = PositionDataSingleton.getInstance().isGPSRecevie();
                     if(intent.getAction().compareTo("location_update") == 0 && mGPSRecevie) {
                         double lantitute = (double)intent.getExtras().get(LATITUDE_POS);
                         double longitute = (double)intent.getExtras().get(LONGITUDE_POS);
@@ -267,7 +297,8 @@ public class MapsActivity extends AppCompatActivity
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(lantitute,longitute)));
                     }
                     else if(intent.getAction().compareTo("postion_data_update") == 0) {
-                        addLoadMarkersToMap();
+//                        syncFileDataToDB();
+//                        addLoadMarkersToMap();
                     }
                 }
             };
@@ -287,6 +318,7 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
 
         enableMyLocation();
         setUpMyPostionMark();
@@ -312,18 +344,62 @@ public class MapsActivity extends AppCompatActivity
             mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
             // Map 을 zoom 합니다.
             mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
-            // 마커 설정.
-//            MarkerOptions optFirst = new MarkerOptions();
-//            optFirst.position(latLng);// 위도 • 경도
-//            optFirst.title("Current Position");// 제목 미리보기
-//            optFirst.snippet("Snippet");
-//            optFirst.icon(BitmapDescriptorFactory.fromResource(R.drawable.ic_audiotrack));
-//            mMap.addMarker(optFirst).showInfoWindow();
             markerBuilderManager.onMapClick(latLng);
         }
         else {
             Toast.makeText(this, R.string.gps_off, Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void syncFileDataToDB() {
+        totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
+        boolean timeoutError = false;
+        Realm realm = Realm.getDefaultInstance();
+        realm.beginTransaction();
+
+        RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
+        toToPositionRealmObjRealmResults.deleteAllFromRealm();
+
+        for(ToToPosition toToPosition : totoPositions) {
+            ToToPositionRealmObj obj = new ToToPositionRealmObj();
+            obj.uniqueId = toToPosition.uniqueId;
+            obj.bizState = toToPosition.bizState;
+            obj.targetName = toToPosition.name;
+            obj.targetBiz = toToPosition.biz;
+            obj.phone = toToPosition.phone;
+//            toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
+            obj.addressData =  toToPosition.addressData;
+            obj.latitude = toToPosition.latLng.latitude;
+            obj.longtitude = toToPosition.latLng.longitude;
+        }
+        realm.commitTransaction();
+    }
+
+    private boolean loadPositionDataFromDB() {
+        Realm realm = Realm.getDefaultInstance();
+        realm.beginTransaction();
+        RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
+        if(toToPositionRealmObjRealmResults.isEmpty()) {
+            realm.commitTransaction();
+            realm.close();
+            return false;
+        }
+
+        for(int i = 0; i< toToPositionRealmObjRealmResults.size(); ++i) {
+            ToToPositionRealmObj obj = (ToToPositionRealmObj)toToPositionRealmObjRealmResults.get(i);
+            ToToPosition position = new ToToPosition();
+            position.uniqueId = obj.uniqueId;
+            position.biz = obj.targetBiz;
+            position.addressData = obj.addressData;
+            position.bizState = obj.bizState;
+            position.phone = obj.phone;
+            LatLng latLng = new LatLng(obj.latitude, obj.longtitude);
+            position.latLng = latLng;
+            totoPositions.add(position);
+        }
+        realm.commitTransaction();
+        realm.close();
+        return true;
     }
 
     private void startLoadDataService() {
@@ -343,7 +419,7 @@ public class MapsActivity extends AppCompatActivity
         public void onServiceConnected(ComponentName name, IBinder service) {
             LoadData_Service.MyBinder myBinder = (LoadData_Service.MyBinder) service;
             loadData_service = myBinder.getService();
-            Toast.makeText(MapsActivity.this, "service Connected", Toast.LENGTH_SHORT).show();
+//            Toast.makeText(MapsActivity.this, "service Connected", Toast.LENGTH_SHORT).show();
 
         }
 
@@ -358,7 +434,8 @@ public class MapsActivity extends AppCompatActivity
         markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
                 .map(mMap)
                 .enabled(true)
-                .radius(200)
+                .minRadius(DEFAULT_MIN_RADIUS_METERS)
+                .radius(DEFAULT_RADIUS_METERS)
                 .strokeColor(Color.RED)
                 .centerBitmap(bm)
                 .fillColor(Color.TRANSPARENT)
@@ -383,33 +460,49 @@ public class MapsActivity extends AppCompatActivity
 
 
     private void addLoadMarkersToMap() {
-        markerPositions = PositionDataSingleton.getInstance().getMarkerPositions();
+        totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
         bizCategoryColorMap.clear();
         bizCategoryColorMap.put(getResources().getString(R.string.none), BitmapDescriptorFactory.HUE_ORANGE);
         int i = 0;
-        for(ToToPosition toToPosition : markerPositions) {
-            if(toToPosition.state == VISIBLE || false == TextUtils.isEmpty(toToPosition.addressData)) {
-                continue;
-            }
-            String targetName = toToPosition.rawData[NAME];
-            String targetBiz = toToPosition.rawData[BUSINESS];
+//        boolean timeoutError = false;
+        for(ToToPosition toToPosition : totoPositions) {
+//            if(toToPosition.state == VISIBLE && false == TextUtils.isEmpty(toToPosition.addressData)) {
+//                continue;
+//            }
+            String targetName = toToPosition.name;
+            String targetBiz = toToPosition.biz;
             if(bizCategoryColorMap.containsKey(targetBiz) == false) {
                 bizCategoryColorMap.put(targetBiz, arrayPinColors[i++ % arrayPinColors.length]);
             }
             toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
-//            LatLng targetLatLng = AddressConvert.getLatLng(this, toToPosition.addressData);
-            LatLng targetLatLng = null;
-            if(targetLatLng == null) {
-                targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-            }
+            LatLng targetLatLng = toToPosition.latLng;
+//            LatLng targetLatLng = null;
+//            try {
+//                if(timeoutError) {
+//                    targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+//                }
+//                else {
+//                    targetLatLng = AddressConvert.getLatLng(this, toToPosition.addressData);
+//                    if(targetLatLng == null) {
+//                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+//                    }
+//                }
+//            }
+//            catch(TimeoutException e) {
+//                timeoutError = true;
+//                targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+//            }
 
-            mMap.addMarker(new MarkerOptions()
+            Marker marker = mMap.addMarker(new MarkerOptions()
                     .position(targetLatLng)
                     .title(targetName)
                     .snippet(targetBiz)
                     .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(targetBiz))));
+                    // .icon(getMarkerIcon("#dadfsf"));
+
             toToPosition.state = VISIBLE;
-            // .icon(getMarkerIcon("#dadfsf"));
+            DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+            mCircles.add(circle);
         }
     }
 
@@ -441,7 +534,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public boolean onMyLocationButtonClick() {
-        Toast.makeText(this, "MyLocation button clicked", Toast.LENGTH_SHORT).show();
+//        Toast.makeText(this, "MyLocation button clicked", Toast.LENGTH_SHORT).show();
         return false;
     }
 
@@ -455,19 +548,6 @@ public class MapsActivity extends AppCompatActivity
     public boolean onMarkerClick(Marker marker) {
         DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
         mCircles.add(circle);
-//        MarkerBuilderManagerV2  myMarker = new MarkerBuilderManagerV2.Builder(this)
-//                .map(mMap)
-//                .enabled(true)
-//                .radius(200)
-//                .strokeColor(Color.RED)
-//                .fillColor(Color.TRANSPARENT)
-//                .build();
-//
-//        myMarker.onMarkerClick(marker);
-//        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-//        intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
-//        intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
-//        startActivityForResult(intent, REQUEST_SEARCH);
         return false;
     }
 
@@ -480,7 +560,7 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onMapLongClick(LatLng latLng) {
         for(Marker marker : markerLocations) {
-            if (Math.abs(marker.getPosition().latitude - latLng.latitude) < 0.05 && Math.abs(marker.getPosition().longitude - latLng.longitude) < 0.05) {
+            if (Math.abs(marker.getPosition().latitude - latLng.latitude) < 0.03 && Math.abs(marker.getPosition().longitude - latLng.longitude) < 0.03) {
                 Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
                 intent.putExtra(LATITUDE_POS, latLng.latitude);
                 intent.putExtra(LONGITUDE_POS, latLng.longitude);
@@ -493,7 +573,10 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        mMap.clear();
+        for(DraggableCircle circle: mCircles) {
+            circle.remove();
+        }
+        mCircles.clear();
         addLoadMarkersToMap();
         super.onActivityResult(requestCode, resultCode, data);
         switch (resultCode) {
@@ -513,7 +596,7 @@ public class MapsActivity extends AppCompatActivity
                 for(Marker marker : markerLocations) {
                     marker.remove();
                 }
-               break;
+                break;
         }
     }
 
@@ -557,14 +640,12 @@ public class MapsActivity extends AppCompatActivity
         Geocoder geocoder = new Geocoder( this );
         String address;
         try {
-            address = geocoder.getFromLocation( latLng.latitude, latLng.longitude, 1 ).get( 0 ).getAddressLine( 0 );
+            address = geocoder.getFromLocation( latLng.latitude, latLng.longitude, 2 ).get( 1 ).getAddressLine( 0 );
         } catch( IOException e ) {
             address = "";
         }
         Log.e( "addMarker", address );
         addMarker( 0, latLng, address );
-//        DraggableCircle circle = new DraggableCircle(latLng, DEFAULT_RADIUS_METERS);
-//        mCircles.add(circle);
     }
 
     public void addMarker( float color, LatLng latLng, String title ) {
@@ -580,15 +661,38 @@ public class MapsActivity extends AppCompatActivity
 
         markerOptions.icon( BitmapDescriptorFactory.defaultMarker( color ) );
         Marker marker = mMap.addMarker( markerOptions );
-        if( false == markerLocations.contains( marker ) )
+        if( false == markerLocations.contains( marker ) ) {
+            DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+            mCircles.add(circle);
             markerLocations.add( marker );
+            markerCircleMap.put(marker.getId(), circle);
+        }
         marker.showInfoWindow();
     }
 
 
     @Override
     public void onBackPressed() {
-        return;
+        new MaterialDialog.Builder(MapsActivity.this)
+                .content(R.string.close_content)
+                .positiveText(R.string.agree)
+                .negativeText(R.string.disagree)
+                .backgroundColorRes(R.color.white)
+                .positiveColorRes(R.color.dialogBtnColor)
+                .negativeColorRes(R.color.dialogBtnColor)
+                .contentColorRes(R.color.black)
+                .onPositive(new MaterialDialog.SingleButtonCallback() {
+                    @Override
+                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                        finish();
+                    }
+                })
+                .onNegative(new MaterialDialog.SingleButtonCallback() {
+                    @Override
+                    public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                    }
+                })
+                .show();
     }
 
     private boolean runtime_permissions() {
@@ -671,15 +775,34 @@ public class MapsActivity extends AppCompatActivity
         return image;
     }
 
-    private class AddLoadMarkerTask extends AsyncTask<String, Void, String> {
+    private class AddLoadMarkerTask extends AsyncTask<String, Integer, String> {
+        ProgressDialog progressDialog;
+
+        public AddLoadMarkerTask() {
+            progressDialog = new ProgressDialog(MapsActivity.this);
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressDialog.setCancelable(false);
+            progressDialog.setTitle("Please Wait..");
+            progressDialog.setMessage("Preparing to download ...");
+            progressDialog.show();
+        }
 
         @Override
         protected String doInBackground(String... params) {
+            FileManager.readExcelFile(MapsActivity.this,"address.xls");
             return null;
         }
 
         @Override
+        protected void onProgressUpdate(Integer... values) {
+            super.onProgressUpdate(values);
+        }
+
+        @Override
         protected void onPostExecute(String result) {
+            syncFileDataToDB();
+            addLoadMarkersToMap();
+            progressDialog.dismiss();
         }
     };
 
@@ -703,7 +826,16 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onResizeCircleEnd(GeofenceCircle geofenceCircle) {
         Log.d(TAG, "onResizeCircleEnd " + geofenceCircle.toString());
-        mRadiusText.setText(String.valueOf((long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()))));
+        long mainCircleRadius = (long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()));
+        mRadiusText.setText(String.valueOf(mainCircleRadius));
+//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+//                .map(mMap)
+//                .enabled(true)
+//                .radius(mainCircleRadius)
+//                .strokeColor(Color.RED)
+//                .fillColor(Color.TRANSPARENT)
+//                .listener(this)
+//                .build();
     }
 
     @Override
