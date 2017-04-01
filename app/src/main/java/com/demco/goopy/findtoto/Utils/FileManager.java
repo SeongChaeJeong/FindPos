@@ -143,6 +143,12 @@ public class FileManager {
             c = row.createCell(2);
             c.setCellValue(position.channel);
 
+            // 주소 정보를 토큰해서 저장
+            String[] splitAddress = TextUtils.split(position.addressData, " ");
+            position.addressList.clear();
+            for(int i = 0; i < splitAddress.length; ++i) {
+                position.addressList.add(splitAddress[i]);
+            }
             for(int i = 0; i < 5; ++i) {
                 c = row.createCell(i + 3);
                 if(i < position.addressList.size()) {
@@ -190,16 +196,21 @@ public class FileManager {
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly())
         {
             Log.w("FileUtils", "Storage not available or read only");
-            Toast.makeText(context, R.string.permission_not_exist, Toast.LENGTH_LONG).show();
+//            Toast.makeText(context, R.string.permission_not_exist, Toast.LENGTH_LONG).show();
             return false;
         }
 
         List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
         File destDir = createDirIfNotExistsDir(RECEIVEFILE_FOLDER_FULLPATH);
 
+
         try{
             // Creating Input Stream
             File file = new File(destDir, filename);
+            if(file.exists() == false) {
+//                Toast.makeText(context, R.string.file_not_exist, Toast.LENGTH_LONG).show();
+                return false;
+            }
             FileInputStream myInput = new FileInputStream(file);
 
             // Create a POIFSFileSystem object
@@ -267,7 +278,7 @@ public class FileManager {
                 positionList.add(toToPosition);
             }
         }catch (Exception e){
-            Toast.makeText(context, R.string.file_not_exist, Toast.LENGTH_LONG).show();
+//            Toast.makeText(context, R.string.file_not_exist, Toast.LENGTH_LONG).show();
             e.printStackTrace();
             return false;
         }

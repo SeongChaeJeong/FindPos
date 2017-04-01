@@ -2,6 +2,8 @@ package com.demco.goopy.findtoto;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -49,6 +51,7 @@ import static com.demco.goopy.findtoto.Data.ToToPosition.NONE;
 import static com.demco.goopy.findtoto.MapsActivity.RESULT_ITEM_SELECT;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
+import static com.demco.goopy.findtoto.Utils.FileManager.RECEIVEFILE_FOLDER_FULLPATH;
 
 /**
  * Created by goopy on 2017-03-25.
@@ -114,7 +117,7 @@ public class PositionMangerActivity extends AppCompatActivity
             getSupportActionBar().setTitle(R.string.position_list_title);
             getSupportActionBar().setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.toolbarColor)));
 
-            String filePath = getExternalFilesDir(null) + "/address.xls" + getString(R.string.check_file);
+            String filePath = RECEIVEFILE_FOLDER_FULLPATH + "/address.xls" +  getString(R.string.check_file);
             ((TextView)findViewById(R.id.empty_alert)).setText(filePath);
             return;
         }
@@ -188,10 +191,12 @@ public class PositionMangerActivity extends AppCompatActivity
     @Override
     public void onClick(View v) {
         selectedItem = null;
-        for(ToToPosition position: dataset) {
-            if(position.uniqueId.compareTo(selectItemUniqeId) == 0) {
-                selectedItem = position;
-                break;
+        if(null != selectItemUniqeId ) {
+            for(ToToPosition position: dataset) {
+                if(position.uniqueId.compareTo(selectItemUniqeId) == 0) {
+                    selectedItem = position;
+                    break;
+                }
             }
         }
         switch (v.getId()) {
@@ -263,12 +268,14 @@ public class PositionMangerActivity extends AppCompatActivity
                                 Realm realm = Realm.getDefaultInstance();
                                 realm.beginTransaction();
                                 ToToPositionRealmObj obj = new ToToPositionRealmObj();
-                                obj.addressData = newPosition.addressData;
-                                obj.uniqueId = newPosition.uniqueId;
-                                obj.targetName = newPosition.name;
-                                obj.targetBiz = newPosition.biz;
-                                obj.phone = newPosition.phone;
-                                obj.bizState = newPosition.bizState;
+
+                                obj.setUniqueId(newPosition.uniqueId);
+                                obj.setBizState(newPosition.bizState);
+                                obj.setTargetName(newPosition.name);
+                                obj.setTargetBiz(newPosition.biz);
+                                obj.setPhone(newPosition.phone);
+                                obj.setAddressData(newPosition.addressData);
+
                                 LatLng targetLatLng = null;
                                 try {
                                     targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, newPosition.addressData);
@@ -279,14 +286,16 @@ public class PositionMangerActivity extends AppCompatActivity
                                 if(targetLatLng == null) {
                                     targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
                                 }
-                                obj.latitude = targetLatLng.latitude;
-                                obj.longtitude = targetLatLng.longitude;
+                                newPosition.latLng = targetLatLng;
+                                obj.setLatitude(targetLatLng.latitude);
+                                obj.setLongtitude(targetLatLng.longitude);
 
                                 realm.commitTransaction();
                                 dataset.add(newPosition);
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.add_ok, Toast.LENGTH_SHORT).show();
                                 initEditText();
+                                syncDBtoFileData();
                             }
                         })
                         .onNegative(new MaterialDialog.SingleButtonCallback() {
@@ -333,12 +342,12 @@ public class PositionMangerActivity extends AppCompatActivity
                                 realm.beginTransaction();
                                 ToToPositionRealmObj obj = realm.where(ToToPositionRealmObj.class).equalTo("uniqueId", selectedItem.uniqueId).findFirst();
                                 if(null != obj) {
-                                    obj.addressData = selectedItem.addressData;
-                                    obj.uniqueId = selectedItem.uniqueId;
-                                    obj.targetName = selectedItem.name;
-                                    obj.targetBiz = selectedItem.biz;
-                                    obj.phone = selectedItem.phone;
-                                    obj.bizState = selectedItem.bizState;
+                                    obj.setUniqueId(selectedItem.uniqueId);
+                                    obj.setBizState(selectedItem.bizState);
+                                    obj.setTargetName(selectedItem.name);
+                                    obj.setTargetBiz(selectedItem.biz);
+                                    obj.setPhone(selectedItem.phone);
+                                    obj.setAddressData(selectedItem.addressData);
                                     LatLng targetLatLng = null;
                                     try {
                                         targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, selectedItem.addressData);
@@ -349,12 +358,13 @@ public class PositionMangerActivity extends AppCompatActivity
                                     if(targetLatLng == null) {
                                         targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
                                     }
-                                    obj.latitude = targetLatLng.latitude;
-                                    obj.longtitude = targetLatLng.longitude;
+                                    selectedItem.latLng = targetLatLng;
+                                    obj.setLatitude(targetLatLng.latitude);
+                                    obj.setLongtitude(targetLatLng.longitude);
                                 }
                                 realm.commitTransaction();
-
                                 mAdapter.notifyDataSetChanged();
+                                syncDBtoFileData();
                             }
                         })
                         .onNegative(new MaterialDialog.SingleButtonCallback() {
@@ -393,6 +403,7 @@ public class PositionMangerActivity extends AppCompatActivity
 
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
+                                syncDBtoFileData();
                             }
 
                         })
@@ -408,22 +419,24 @@ public class PositionMangerActivity extends AppCompatActivity
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
                     break;
                 }
-                LatLng targetLatLng = null;
-                try {
-                    targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, selectedItem.addressData);
-                    if(targetLatLng == null) {
-                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-                    }
-                }
-                catch(TimeoutException e) {
-                    targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-                }
+
                 Intent intent = new Intent();
-                intent.putExtra(LATITUDE_POS, targetLatLng.latitude);
-                intent.putExtra(LONGITUDE_POS, targetLatLng.longitude);
+                intent.putExtra(LATITUDE_POS, selectedItem.latLng.latitude);
+                intent.putExtra(LONGITUDE_POS, selectedItem.latLng.longitude);
                 Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
                 setResult(RESULT_ITEM_SELECT, intent);
                 finish();
+        }
+    }
+
+    private void syncDBtoFileData() {
+        List<ToToPosition> toToPositionList = PositionDataSingleton.getInstance().getMarkerPositions();
+        if(toToPositionList.isEmpty() == false) {
+            if(FileManager.saveExcelFile(this, "address.xls")) {
+            }
+            else {
+                Toast.makeText(this, R.string.save_fail, Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
@@ -448,19 +461,26 @@ public class PositionMangerActivity extends AppCompatActivity
             case android.R.id.home:
                 onBackPressed();
                 return true;
-            case R.id.action_list_save:
-                List<ToToPosition> toToPositionList = PositionDataSingleton.getInstance().getMarkerPositions();
-                if(toToPositionList.isEmpty()) {
-                    Toast.makeText(this, R.string.list_empty, Toast.LENGTH_SHORT).show();
-                    return true;
-                }
-                if(FileManager.saveExcelFile(this, "address.xls")) {
-                    Toast.makeText(this, R.string.save_ok, Toast.LENGTH_SHORT).show();
-                }
-                else {
-                    Toast.makeText(this, R.string.save_fail, Toast.LENGTH_SHORT).show();
-                }
-                return true;
+//            case R.id.action_list_save:
+//                List<ToToPosition> toToPositionList = PositionDataSingleton.getInstance().getMarkerPositions();
+//                if(toToPositionList.isEmpty()) {
+//                    Toast.makeText(this, R.string.list_empty, Toast.LENGTH_SHORT).show();
+//                    return true;
+//                }
+//                if(FileManager.saveExcelFile(this, "address.xls")) {
+//                    Toast.makeText(this, R.string.save_ok, Toast.LENGTH_SHORT).show();
+//                }
+//                else {
+//                    Toast.makeText(this, R.string.save_fail, Toast.LENGTH_SHORT).show();
+//                }
+//                return true;
+            case R.id.app_version:
+                String version;
+                try {
+                    PackageInfo i = this.getPackageManager().getPackageInfo(this.getPackageName(), 0);
+                    version = i.versionName;
+                    Toast.makeText(this, String.format(getString(R.string.app_version), version), Toast.LENGTH_SHORT).show();
+                } catch(PackageManager.NameNotFoundException e) { }
 
             default:
                 return super.onOptionsItemSelected(item);

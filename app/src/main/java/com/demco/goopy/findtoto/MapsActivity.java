@@ -3,11 +3,9 @@ package com.demco.goopy.findtoto;
 import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -18,12 +16,10 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -42,8 +38,6 @@ import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.Data.ToToPositionRealmObj;
 import com.demco.goopy.findtoto.System.GPS_Service;
-import com.demco.goopy.findtoto.System.LoadData_Service;
-import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -68,7 +62,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeoutException;
 
 import io.realm.DynamicRealm;
 import io.realm.Realm;
@@ -105,7 +98,9 @@ public class MapsActivity extends AppCompatActivity
     private LocationManager manager;
     private BroadcastReceiver broadcastReceiver;
 
-    private static final float DEFAULT_ZOOM = 28.0f;
+    // 수자가 클수록 줌인 됨
+    // 0 ~ 19
+    private static final float DEFAULT_ZOOM = 16.5f;
     private static final int DEFAULT_MIN_RADIUS_METERS = 50;
     private static final double DEFAULT_RADIUS_METERS = 200;
     private MarkerBuilderManagerV2 markerBuilderManager;
@@ -118,9 +113,10 @@ public class MapsActivity extends AppCompatActivity
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
-    private List<Marker> markerLocations = new ArrayList<>();
+    private List<Marker> tempMarkerLocations = new ArrayList<>();
+    private List<Marker> dbMarkerLocations = new ArrayList<>();
     private Map<String, DraggableCircle> markerCircleMap = new HashMap<>();
-    private List<ToToPosition> totoPositions = null;
+    private List<ToToPosition> totoPositions = new ArrayList<>();
     private Map<String, Float> bizCategoryColorMap = new HashMap<>();
     private View capView;
     private ViewGroup mainLayout;
@@ -190,10 +186,7 @@ public class MapsActivity extends AppCompatActivity
         Realm.setDefaultConfiguration(realmConfiguration);
 
         PositionDataSingleton.getInstance().setGPSRecevie(true);
-        if(loadPositionDataFromDB() == false) {
-            new AddLoadMarkerTask().execute();
-//            startLoadDataService();
-        }
+
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         mRadiusText = (TextView) findViewById(R.id.main_circle_text);
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
@@ -206,6 +199,7 @@ public class MapsActivity extends AppCompatActivity
         mSearchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                List<ToToPosition> totoPositions2 = PositionDataSingleton.getInstance().getMarkerPositions();
                 Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
                 startActivityForResult(intent, REQUEST_SEARCH);
             }
@@ -226,19 +220,19 @@ public class MapsActivity extends AppCompatActivity
         mCloseImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(markerLocations.isEmpty()) {
+                if(tempMarkerLocations.isEmpty()) {
                     Toast.makeText(MapsActivity.this, R.string.no_remove_marker, Toast.LENGTH_SHORT).show();
                     return;
                 }
-                int lastIndex = markerLocations.size() - 1;
-                Marker lastMarker = markerLocations.get(lastIndex);
+                int lastIndex = tempMarkerLocations.size() - 1;
+                Marker lastMarker = tempMarkerLocations.get(lastIndex);
                 if(null != lastMarker) {
                     if(markerCircleMap.containsKey(lastMarker.getId())) {
                         DraggableCircle circle = markerCircleMap.get(lastMarker.getId());
                         circle.remove();
                         markerCircleMap.remove(lastMarker.getId());
                     }
-                    markerLocations.remove(lastMarker);
+                    tempMarkerLocations.remove(lastMarker);
                     lastMarker.remove();
                 }
             }
@@ -283,8 +277,8 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        Intent intent = new Intent(this, LoadData_Service.class);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+//        Intent intent = new Intent(this, LoadData_Service.class);
+//        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
         if(broadcastReceiver == null){
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
@@ -295,10 +289,6 @@ public class MapsActivity extends AppCompatActivity
                         double longitute = (double)intent.getExtras().get(LONGITUDE_POS);
                         markerBuilderManager.onMapClick(new LatLng(lantitute,longitute));
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(lantitute,longitute)));
-                    }
-                    else if(intent.getAction().compareTo("postion_data_update") == 0) {
-//                        syncFileDataToDB();
-//                        addLoadMarkersToMap();
                     }
                 }
             };
@@ -319,6 +309,12 @@ public class MapsActivity extends AppCompatActivity
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
+        if(loadPositionDataFromDB()) {
+            addLoadMarkersToMap();
+        }
+        else {
+            new AddLoadMarkerTask().execute();
+        }
 
         enableMyLocation();
         setUpMyPostionMark();
@@ -351,6 +347,7 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
+
     private void syncFileDataToDB() {
         totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
         boolean timeoutError = false;
@@ -361,16 +358,15 @@ public class MapsActivity extends AppCompatActivity
         toToPositionRealmObjRealmResults.deleteAllFromRealm();
 
         for(ToToPosition toToPosition : totoPositions) {
-            ToToPositionRealmObj obj = new ToToPositionRealmObj();
-            obj.uniqueId = toToPosition.uniqueId;
-            obj.bizState = toToPosition.bizState;
-            obj.targetName = toToPosition.name;
-            obj.targetBiz = toToPosition.biz;
-            obj.phone = toToPosition.phone;
-//            toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
-            obj.addressData =  toToPosition.addressData;
-            obj.latitude = toToPosition.latLng.latitude;
-            obj.longtitude = toToPosition.latLng.longitude;
+            ToToPositionRealmObj obj = realm.createObject(ToToPositionRealmObj.class);
+            obj.setUniqueId(toToPosition.uniqueId);
+            obj.setBizState(toToPosition.bizState);
+            obj.setTargetName(toToPosition.name);
+            obj.setTargetBiz(toToPosition.biz);
+            obj.setPhone(toToPosition.phone);
+            obj.setAddressData(toToPosition.addressData);
+            obj.setLatitude(toToPosition.latLng.latitude);
+            obj.setLongtitude(toToPosition.latLng.longitude);
         }
         realm.commitTransaction();
     }
@@ -384,50 +380,53 @@ public class MapsActivity extends AppCompatActivity
             realm.close();
             return false;
         }
-
+        List<ToToPosition> loadPositions = PositionDataSingleton.getInstance().getMarkerPositions();
+        loadPositions.clear();
         for(int i = 0; i< toToPositionRealmObjRealmResults.size(); ++i) {
             ToToPositionRealmObj obj = (ToToPositionRealmObj)toToPositionRealmObjRealmResults.get(i);
             ToToPosition position = new ToToPosition();
-            position.uniqueId = obj.uniqueId;
-            position.biz = obj.targetBiz;
-            position.addressData = obj.addressData;
-            position.bizState = obj.bizState;
-            position.phone = obj.phone;
-            LatLng latLng = new LatLng(obj.latitude, obj.longtitude);
+            position.uniqueId = obj.getUniqueId();
+            position.name = obj.getTargetName();
+            position.biz = obj.getTargetBiz();
+            position.addressData = obj.getAddressData();
+            position.bizState = obj.getBizState();
+            position.phone = obj.getPhone();
+            LatLng latLng = new LatLng(obj.getLatitude(), obj.getLongtitude());
             position.latLng = latLng;
-            totoPositions.add(position);
+            loadPositions.add(position);
         }
+        //PositionDataSingleton.getInstance().setMarkerPositions(loadPositions);
         realm.commitTransaction();
         realm.close();
         return true;
     }
 
-    private void startLoadDataService() {
-        Intent i = new Intent(getApplicationContext(), LoadData_Service.class);
-        startService(i);
-    }
+//    private void startLoadDataService() {
+//        Intent i = new Intent(getApplicationContext(), LoadData_Service.class);
+//        startService(i);
+//    }
 
     private void startGPSService() {
         Intent i = new Intent(getApplicationContext(),GPS_Service.class);
         startService(i);
     }
 
-    private LoadData_Service loadData_service;
+//    private LoadData_Service loadData_service;
 
-    private ServiceConnection mConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            LoadData_Service.MyBinder myBinder = (LoadData_Service.MyBinder) service;
-            loadData_service = myBinder.getService();
-//            Toast.makeText(MapsActivity.this, "service Connected", Toast.LENGTH_SHORT).show();
-
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            loadData_service = null;
-        }
-    };
+//    private ServiceConnection mConnection = new ServiceConnection() {
+//        @Override
+//        public void onServiceConnected(ComponentName name, IBinder service) {
+//            LoadData_Service.MyBinder myBinder = (LoadData_Service.MyBinder) service;
+////            loadData_service = myBinder.getService();
+////            Toast.makeText(MapsActivity.this, "service Connected", Toast.LENGTH_SHORT).show();
+//
+//        }
+//
+//        @Override
+//        public void onServiceDisconnected(ComponentName name) {
+//            loadData_service = null;
+//        }
+//    };
 
     private void setUpMyPostionMark() {
         Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.ic_error);
@@ -464,35 +463,13 @@ public class MapsActivity extends AppCompatActivity
         bizCategoryColorMap.clear();
         bizCategoryColorMap.put(getResources().getString(R.string.none), BitmapDescriptorFactory.HUE_ORANGE);
         int i = 0;
-//        boolean timeoutError = false;
         for(ToToPosition toToPosition : totoPositions) {
-//            if(toToPosition.state == VISIBLE && false == TextUtils.isEmpty(toToPosition.addressData)) {
-//                continue;
-//            }
             String targetName = toToPosition.name;
             String targetBiz = toToPosition.biz;
             if(bizCategoryColorMap.containsKey(targetBiz) == false) {
                 bizCategoryColorMap.put(targetBiz, arrayPinColors[i++ % arrayPinColors.length]);
             }
-            toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
             LatLng targetLatLng = toToPosition.latLng;
-//            LatLng targetLatLng = null;
-//            try {
-//                if(timeoutError) {
-//                    targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-//                }
-//                else {
-//                    targetLatLng = AddressConvert.getLatLng(this, toToPosition.addressData);
-//                    if(targetLatLng == null) {
-//                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-//                    }
-//                }
-//            }
-//            catch(TimeoutException e) {
-//                timeoutError = true;
-//                targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-//            }
-
             Marker marker = mMap.addMarker(new MarkerOptions()
                     .position(targetLatLng)
                     .title(targetName)
@@ -500,9 +477,13 @@ public class MapsActivity extends AppCompatActivity
                     .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(targetBiz))));
                     // .icon(getMarkerIcon("#dadfsf"));
 
+            if( false == dbMarkerLocations.contains( marker ) ) {
+                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+                mCircles.add(circle);
+                dbMarkerLocations.add( marker );
+                markerCircleMap.put(marker.getId(), circle);
+            }
             toToPosition.state = VISIBLE;
-            DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-            mCircles.add(circle);
         }
     }
 
@@ -559,7 +540,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-        for(Marker marker : markerLocations) {
+        for(Marker marker : tempMarkerLocations) {
             if (Math.abs(marker.getPosition().latitude - latLng.latitude) < 0.03 && Math.abs(marker.getPosition().longitude - latLng.longitude) < 0.03) {
                 Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
                 intent.putExtra(LATITUDE_POS, latLng.latitude);
@@ -568,23 +549,37 @@ public class MapsActivity extends AppCompatActivity
                 break;
             }
         }
+    }
 
+    private void clearAllDBMarker() {
+        List<Marker> clearLoccation = new ArrayList<>();
+        clearLoccation.addAll(dbMarkerLocations);
+        for(Marker marker : clearLoccation) {
+            if(null != marker) {
+                if(markerCircleMap.containsKey(marker.getId())) {
+                    DraggableCircle circle = markerCircleMap.get(marker.getId());
+                    circle.remove();
+                    markerCircleMap.remove(marker.getId());
+                }
+                dbMarkerLocations.remove(marker);
+                marker.remove();
+            }
+        }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        for(DraggableCircle circle: mCircles) {
-            circle.remove();
-        }
-        mCircles.clear();
-        addLoadMarkersToMap();
         super.onActivityResult(requestCode, resultCode, data);
         switch (resultCode) {
             case REQUEST_SEARCH:
+                addLoadMarkersToMap();
                 break;
             case REQUEST_MARKER_LONGCLICK:
+                addLoadMarkersToMap();
                 break;
             case RESULT_ITEM_SELECT:
+                clearAllDBMarker();
+                addLoadMarkersToMap();
                 Bundle bundle = data.getExtras();
                 if(null != bundle) {
                     double focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
@@ -593,9 +588,8 @@ public class MapsActivity extends AppCompatActivity
                 }
                 break;
             default:
-                for(Marker marker : markerLocations) {
-                    marker.remove();
-                }
+                clearAllDBMarker();
+                addLoadMarkersToMap();
                 break;
         }
     }
@@ -661,10 +655,10 @@ public class MapsActivity extends AppCompatActivity
 
         markerOptions.icon( BitmapDescriptorFactory.defaultMarker( color ) );
         Marker marker = mMap.addMarker( markerOptions );
-        if( false == markerLocations.contains( marker ) ) {
+        if( false == tempMarkerLocations.contains( marker ) ) {
             DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
             mCircles.add(circle);
-            markerLocations.add( marker );
+            tempMarkerLocations.add( marker );
             markerCircleMap.put(marker.getId(), circle);
         }
         marker.showInfoWindow();
@@ -744,8 +738,6 @@ public class MapsActivity extends AppCompatActivity
         String filename = "screenshot.png";
 
         try{
-
-//            File f = new File(Environment.getEx(),filename);
             File f = new File(this.getExternalFilesDir(null), filename);
             f.createNewFile();
             OutputStream outStream = new FileOutputStream(f);
@@ -782,8 +774,8 @@ public class MapsActivity extends AppCompatActivity
             progressDialog = new ProgressDialog(MapsActivity.this);
             progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
             progressDialog.setCancelable(false);
-            progressDialog.setTitle("Please Wait..");
-            progressDialog.setMessage("Preparing to download ...");
+            progressDialog.setTitle(R.string.wait_for_map_load_title);
+            progressDialog.setMessage(getResources().getString(R.string.wait_for_map_load));
             progressDialog.show();
         }
 

@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">FindToTo</string>
-    <string name="file_not_exist">저장된 목록파일이 없습니다.</string>
+    <string name="file_not_exist">"address.xls" 파일이 없습니다.</string>
     <string name="permission_not_exist">스토리지 접근권한이 없습니다.</string>
     <string name="market_title_label">상호</string>
     <string name="market_category_label">업태</string>
@@ -26,6 +26,8 @@
     <string name="save_fail">목록을 파일에 저장하는데 실패하였습니다.</string>
     <string name="gps_receive_off">GPS 수신을 차단합니다.</string>
     <string name="gps_receive_on">GPS 수신을 받습니다.</string>
+    <string name="app_version_label">앱버전</string>
+    <string name="app_version">앱버전: %s</string>
     <string name="no_remove_marker">삭제할 마커가 없습니다.</string>
     <string name="error_crash">앱이 비정상 종료되었습니다. 비정상 종료 원인파악을 위해 메일을 보내주세요~!</string>
 
@@ -200,8 +202,8 @@
     <string name="vr_more_padded_button">More</string>
     <string name="vr_soh_button">SOH</string>
     <string name="vr_sfo_button">SFO</string>
-    <string name="wait_for_map_load_title">데이터 로드 중...</string>
-    <string name="wait_for_map_load">파일의 데이터를 지도에 로드하는 중입니다.</string>
+    <string name="wait_for_map_load_title">데이터 로드 중.</string>
+    <string name="wait_for_map_load">"address.xls" 데이터를 지도에 로드하는 중입니다...</string>
     <string name="width">Width</string>
     <string name="zoom_buttons">Zoom Buttons</string>
     <string name="zoom_gestures">Zoom Gestures</string>

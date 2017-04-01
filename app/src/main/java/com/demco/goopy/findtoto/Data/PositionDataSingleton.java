@@ -24,6 +24,11 @@ public class PositionDataSingleton {
         return mInstance;
     }
 
+    public void setMarkerPositions(List<ToToPosition> list) {
+        markerPositions.clear();
+        markerPositions.addAll(list);
+    }
+
     public List<ToToPosition> getMarkerPositions() {
         return markerPositions;
     }
