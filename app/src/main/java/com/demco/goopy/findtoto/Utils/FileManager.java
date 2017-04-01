@@ -166,7 +166,6 @@ public class FileManager {
             c.setCellValue(position.phone);
         }
 
-
         // Create a path where we will place our List of objects on external storage
         File file = new File(destDir, fileName);
         FileOutputStream os = null;

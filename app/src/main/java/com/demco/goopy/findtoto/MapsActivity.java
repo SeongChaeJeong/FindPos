@@ -199,7 +199,7 @@ public class MapsActivity extends AppCompatActivity
         mSearchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                List<ToToPosition> totoPositions2 = PositionDataSingleton.getInstance().getMarkerPositions();
+                clearAllDBMarker();
                 Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
                 startActivityForResult(intent, REQUEST_SEARCH);
             }
@@ -247,7 +247,6 @@ public class MapsActivity extends AppCompatActivity
             }
         });
 
-
         mScreenSaveImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -267,8 +266,6 @@ public class MapsActivity extends AppCompatActivity
             }
         });
 
-
-
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
@@ -277,8 +274,6 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-//        Intent intent = new Intent(this, LoadData_Service.class);
-//        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
         if(broadcastReceiver == null){
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
@@ -327,7 +322,6 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnCircleClickListener(this);
     }
 
-
     private void getCurrentGPSInfo() {
         GpsInfo gps = new GpsInfo(MapsActivity.this);
         // GPS 사용유무 가져오기
@@ -346,7 +340,6 @@ public class MapsActivity extends AppCompatActivity
             Toast.makeText(this, R.string.gps_off, Toast.LENGTH_LONG).show();
         }
     }
-
 
     private void syncFileDataToDB() {
         totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
@@ -401,32 +394,10 @@ public class MapsActivity extends AppCompatActivity
         return true;
     }
 
-//    private void startLoadDataService() {
-//        Intent i = new Intent(getApplicationContext(), LoadData_Service.class);
-//        startService(i);
-//    }
-
     private void startGPSService() {
         Intent i = new Intent(getApplicationContext(),GPS_Service.class);
         startService(i);
     }
-
-//    private LoadData_Service loadData_service;
-
-//    private ServiceConnection mConnection = new ServiceConnection() {
-//        @Override
-//        public void onServiceConnected(ComponentName name, IBinder service) {
-//            LoadData_Service.MyBinder myBinder = (LoadData_Service.MyBinder) service;
-////            loadData_service = myBinder.getService();
-////            Toast.makeText(MapsActivity.this, "service Connected", Toast.LENGTH_SHORT).show();
-//
-//        }
-//
-//        @Override
-//        public void onServiceDisconnected(ComponentName name) {
-//            loadData_service = null;
-//        }
-//    };
 
     private void setUpMyPostionMark() {
         Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.ic_error);
@@ -493,9 +464,6 @@ public class MapsActivity extends AppCompatActivity
         return BitmapDescriptorFactory.defaultMarker(hsv[0]);
     }
 
-    /**
-     * Enables the My Location layer if the fine location permission has been granted.
-     */
     private void enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -515,40 +483,35 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public boolean onMyLocationButtonClick() {
-//        Toast.makeText(this, "MyLocation button clicked", Toast.LENGTH_SHORT).show();
         return false;
     }
 
     @Override
     public void onCameraIdle() {
-//        mCameraTextView.setText(mMap.getCameraPosition().toString());
     }
-
 
     @Override
     public boolean onMarkerClick(Marker marker) {
-        DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-        mCircles.add(circle);
+        clearAllDBMarker();
+        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
+        intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
+        intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
+        startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
         return false;
     }
 
     @Override
     public void onMapClick(LatLng latLng) {
         addMarker(latLng, false);
-//        markerBuilderManager.onMapClick(latLng);
     }
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-        for(Marker marker : tempMarkerLocations) {
-            if (Math.abs(marker.getPosition().latitude - latLng.latitude) < 0.03 && Math.abs(marker.getPosition().longitude - latLng.longitude) < 0.03) {
-                Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-                intent.putExtra(LATITUDE_POS, latLng.latitude);
-                intent.putExtra(LONGITUDE_POS, latLng.longitude);
-                startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
-                break;
-            }
-        }
+        clearAllDBMarker();
+        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
+        intent.putExtra(LATITUDE_POS, latLng.latitude);
+        intent.putExtra(LONGITUDE_POS, latLng.longitude);
+        startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
     }
 
     private void clearAllDBMarker() {
@@ -569,27 +532,22 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        addLoadMarkersToMap();
         super.onActivityResult(requestCode, resultCode, data);
         switch (resultCode) {
             case REQUEST_SEARCH:
-                addLoadMarkersToMap();
                 break;
             case REQUEST_MARKER_LONGCLICK:
-                addLoadMarkersToMap();
                 break;
             case RESULT_ITEM_SELECT:
-                clearAllDBMarker();
-                addLoadMarkersToMap();
                 Bundle bundle = data.getExtras();
                 if(null != bundle) {
                     double focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
                     double focusLongitude = bundle.getDouble(LONGITUDE_POS, defaultLongitude);
-                    mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(focusLatitude, focusLongitude)));
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(focusLatitude, focusLongitude), DEFAULT_ZOOM));
                 }
                 break;
             default:
-                clearAllDBMarker();
-                addLoadMarkersToMap();
                 break;
         }
     }
@@ -612,20 +570,15 @@ public class MapsActivity extends AppCompatActivity
     protected void onResumeFragments() {
         super.onResumeFragments();
         if (mPermissionDenied) {
-            // Permission was not granted, display error dialog.
             showMissingPermissionError();
             mPermissionDenied = false;
         }
     }
 
-    /**
-     * Displays a dialog with error message explaining that the location permission is missing.
-     */
     private void showMissingPermissionError() {
         PermissionUtils.PermissionDeniedDialog
                 .newInstance(true).show(getSupportFragmentManager(), "dialog");
     }
-
 
     public void addMarker( LatLng latLng , boolean insert) {
         if( latLng == null )
@@ -664,7 +617,6 @@ public class MapsActivity extends AppCompatActivity
         marker.showInfoWindow();
     }
 
-
     @Override
     public void onBackPressed() {
         new MaterialDialog.Builder(MapsActivity.this)
@@ -697,6 +649,97 @@ public class MapsActivity extends AppCompatActivity
             return true;
         }
         return false;
+    }
+
+    private class AddLoadMarkerTask extends AsyncTask<String, Integer, String> {
+        ProgressDialog progressDialog;
+
+        public AddLoadMarkerTask() {
+            progressDialog = new ProgressDialog(MapsActivity.this);
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressDialog.setCancelable(false);
+            progressDialog.setTitle(R.string.wait_for_map_load_title);
+            progressDialog.setMessage(getResources().getString(R.string.wait_for_map_load));
+            progressDialog.show();
+        }
+
+        @Override
+        protected String doInBackground(String... params) {
+            FileManager.readExcelFile(MapsActivity.this,"address.xls");
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            super.onProgressUpdate(values);
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            syncFileDataToDB();
+            addLoadMarkersToMap();
+            progressDialog.dismiss();
+        }
+    };
+
+    @Override
+    public void onInitCreateCircle(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onInitCreateCircle " + geofenceCircle.toString());
+    }
+
+    @Override
+    public void onCircleMarkerClick(GeofenceCircle geofenceCircle) {
+        if(geofenceCircle != null) {
+            Log.d(TAG, "onCircleMarkerClick " + geofenceCircle.toString());
+        }
+    }
+
+    @Override
+    public void onCreateCircle(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onCreateCircle " + geofenceCircle.toString());
+    }
+
+    @Override
+    public void onResizeCircleEnd(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onResizeCircleEnd " + geofenceCircle.toString());
+        long mainCircleRadius = (long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()));
+        mRadiusText.setText(String.valueOf(mainCircleRadius));
+//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+//                .map(mMap)
+//                .enabled(true)
+//                .radius(mainCircleRadius)
+//                .strokeColor(Color.RED)
+//                .fillColor(Color.TRANSPARENT)
+//                .listener(this)
+//                .build();
+    }
+
+    @Override
+    public void onMoveCircleEnd(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onMoveCircleEnd " + geofenceCircle.toString());
+    }
+
+    @Override
+    public void onMoveCircleStart(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onMoveCircleStart " + geofenceCircle.toString());
+    }
+
+    @Override
+    public void onResizeCircleStart(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onResizeCircleStart " + geofenceCircle.toString());
+
+    }
+
+    @Override
+    public void onMinRadius(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onMinRadius " + geofenceCircle.toString());
+
+    }
+
+    @Override
+    public void onMaxRadius(GeofenceCircle geofenceCircle) {
+        Log.d(TAG, "onMaxRadius " + geofenceCircle.toString());
+
     }
 
     public void screenShot(View view) {
@@ -767,96 +810,4 @@ public class MapsActivity extends AppCompatActivity
         return image;
     }
 
-    private class AddLoadMarkerTask extends AsyncTask<String, Integer, String> {
-        ProgressDialog progressDialog;
-
-        public AddLoadMarkerTask() {
-            progressDialog = new ProgressDialog(MapsActivity.this);
-            progressDialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-            progressDialog.setCancelable(false);
-            progressDialog.setTitle(R.string.wait_for_map_load_title);
-            progressDialog.setMessage(getResources().getString(R.string.wait_for_map_load));
-            progressDialog.show();
-        }
-
-        @Override
-        protected String doInBackground(String... params) {
-            FileManager.readExcelFile(MapsActivity.this,"address.xls");
-            return null;
-        }
-
-        @Override
-        protected void onProgressUpdate(Integer... values) {
-            super.onProgressUpdate(values);
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            syncFileDataToDB();
-            addLoadMarkersToMap();
-            progressDialog.dismiss();
-        }
-    };
-
-    @Override
-    public void onInitCreateCircle(GeofenceCircle geofenceCircle) {
-        Log.d(TAG, "onInitCreateCircle " + geofenceCircle.toString());
-    }
-
-    @Override
-    public void onCircleMarkerClick(GeofenceCircle geofenceCircle) {
-        if(geofenceCircle != null) {
-            Log.d(TAG, "onCircleMarkerClick " + geofenceCircle.toString());
-        }
-    }
-
-    @Override
-    public void onCreateCircle(GeofenceCircle geofenceCircle) {
-        Log.d(TAG, "onCreateCircle " + geofenceCircle.toString());
-    }
-
-    @Override
-    public void onResizeCircleEnd(GeofenceCircle geofenceCircle) {
-        Log.d(TAG, "onResizeCircleEnd " + geofenceCircle.toString());
-        long mainCircleRadius = (long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()));
-        mRadiusText.setText(String.valueOf(mainCircleRadius));
-//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-//                .map(mMap)
-//                .enabled(true)
-//                .radius(mainCircleRadius)
-//                .strokeColor(Color.RED)
-//                .fillColor(Color.TRANSPARENT)
-//                .listener(this)
-//                .build();
-    }
-
-    @Override
-    public void onMoveCircleEnd(GeofenceCircle geofenceCircle) {
-        Log.d(TAG, "onMoveCircleEnd " + geofenceCircle.toString());
-
-    }
-
-    @Override
-    public void onMoveCircleStart(GeofenceCircle geofenceCircle) {
-        Log.d(TAG, "onMoveCircleStart " + geofenceCircle.toString());
-
-    }
-
-    @Override
-    public void onResizeCircleStart(GeofenceCircle geofenceCircle) {
-        Log.d(TAG, "onResizeCircleStart " + geofenceCircle.toString());
-
-    }
-
-    @Override
-    public void onMinRadius(GeofenceCircle geofenceCircle) {
-        Log.d(TAG, "onMinRadius " + geofenceCircle.toString());
-
-    }
-
-    @Override
-    public void onMaxRadius(GeofenceCircle geofenceCircle) {
-        Log.d(TAG, "onMaxRadius " + geofenceCircle.toString());
-
-    }
 }

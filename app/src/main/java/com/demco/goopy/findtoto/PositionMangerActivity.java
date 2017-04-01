@@ -171,15 +171,11 @@ public class PositionMangerActivity extends AppCompatActivity
         focusMapBtn.setOnClickListener(this);
 
         mRecyclerView = (RecyclerView) findViewById(R.id.position_recycler_view);
-        // use this setting to improve performance if you know that changes
-        // in content do not change the layout size of the RecyclerView
         mRecyclerView.setHasFixedSize(true);
 
-        // use a linear layout manager
         mLayoutManager = new LinearLayoutManager(this);
         mRecyclerView.setLayoutManager(mLayoutManager);
 
-        // specify an adapter (see also next example)
         mAdapter = new PositionAdapter(this, dataset);
         mRecyclerView.setAdapter(mAdapter);
     }
@@ -267,8 +263,7 @@ public class PositionMangerActivity extends AppCompatActivity
 
                                 Realm realm = Realm.getDefaultInstance();
                                 realm.beginTransaction();
-                                ToToPositionRealmObj obj = new ToToPositionRealmObj();
-
+                                ToToPositionRealmObj obj = realm.createObject(ToToPositionRealmObj.class);
                                 obj.setUniqueId(newPosition.uniqueId);
                                 obj.setBizState(newPosition.bizState);
                                 obj.setTargetName(newPosition.name);
@@ -392,15 +387,15 @@ public class PositionMangerActivity extends AppCompatActivity
                         .onPositive(new MaterialDialog.SingleButtonCallback() {
                             @Override
                             public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
-                                dataset.remove(selectedItem);
                                 initEditText();
-
                                 Realm realm = Realm.getDefaultInstance();
                                 realm.beginTransaction();
                                 ToToPositionRealmObj obj = realm.where(ToToPositionRealmObj.class).equalTo("uniqueId", selectedItem.uniqueId).findFirst();
-                                obj.deleteFromRealm();
+                                if(null != obj) {
+                                    obj.deleteFromRealm();
+                                }
                                 realm.commitTransaction();
-
+                                dataset.remove(selectedItem);
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
                                 syncDBtoFileData();
@@ -538,12 +533,10 @@ public class PositionMangerActivity extends AppCompatActivity
         }
 
         class CustomViewHolder extends RecyclerView.ViewHolder {
-            protected ImageView imageView;
             protected TextView marketTitle;
             protected TextView marketCategory;
             protected TextView marketAddress;
             protected Button selectItemBtn;
-            protected Button positionFocusBtn;
 
             public CustomViewHolder(View view) {
                 super(view);
@@ -551,7 +544,6 @@ public class PositionMangerActivity extends AppCompatActivity
                 this.marketCategory = (TextView) view.findViewById(R.id.market_category);
                 this.marketAddress = (TextView) view.findViewById(R.id.market_address);
                 this.selectItemBtn = (Button) view.findViewById(R.id.select_item_btn);
-//                this.positionFocusBtn = (Button) view.findViewById(R.id.focus_map_btn);
             }
         }
     }
