@@ -97,6 +97,7 @@ public class MapsActivity extends AppCompatActivity
     private boolean mGPSRecevie = true;
     private LocationManager manager;
     private BroadcastReceiver broadcastReceiver;
+    private GpsInfo gps;
 
     // 수자가 클수록 줌인 됨
     // 0 ~ 19
@@ -112,6 +113,9 @@ public class MapsActivity extends AppCompatActivity
     public static final double defaultLongitude = 126.978418;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
+    private double currentLantitute = defaultLatitude;
+    private double currentLongitute = defaultLongitude;
+
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
     private List<Marker> tempMarkerLocations = new ArrayList<>();
     private List<Marker> dbMarkerLocations = new ArrayList<>();
@@ -123,6 +127,7 @@ public class MapsActivity extends AppCompatActivity
     private ImageView imageView;
     private TextView mRadiusText;
     private Bitmap mbitmap;
+
 
 
     private float[] arrayPinColors = new float[] {
@@ -280,10 +285,10 @@ public class MapsActivity extends AppCompatActivity
                 public void onReceive(Context context, Intent intent) {
                     mGPSRecevie = PositionDataSingleton.getInstance().isGPSRecevie();
                     if(intent.getAction().compareTo("location_update") == 0 && mGPSRecevie) {
-                        double lantitute = (double)intent.getExtras().get(LATITUDE_POS);
-                        double longitute = (double)intent.getExtras().get(LONGITUDE_POS);
-                        markerBuilderManager.onMapClick(new LatLng(lantitute,longitute));
-                        mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(lantitute,longitute)));
+                        currentLantitute = (double)intent.getExtras().get(LATITUDE_POS);
+                        currentLongitute = (double)intent.getExtras().get(LONGITUDE_POS);
+                        markerBuilderManager.onMapClick(new LatLng(currentLantitute,currentLongitute));
+                        mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(currentLantitute,currentLongitute)));
                     }
                 }
             };
@@ -323,16 +328,13 @@ public class MapsActivity extends AppCompatActivity
     }
 
     private void getCurrentGPSInfo() {
-        GpsInfo gps = new GpsInfo(MapsActivity.this);
+        gps = new GpsInfo(MapsActivity.this);
         // GPS 사용유무 가져오기
         if (gps.isGetLocation()) {
-            double latitude = gps.getLatitude();
-            double longitude = gps.getLongitude();
-            // Creating a LatLng object for the current location
-            LatLng latLng = new LatLng(latitude, longitude);
-            // Showing the current location in Google Map
+            currentLantitute = gps.getLatitude();
+            currentLongitute = gps.getLongitude();
+            LatLng latLng = new LatLng(currentLantitute, currentLongitute);
             mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-            // Map 을 zoom 합니다.
             mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
             markerBuilderManager.onMapClick(latLng);
         }
@@ -565,7 +567,6 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
-
     @Override
     protected void onResumeFragments() {
         super.onResumeFragments();
@@ -583,7 +584,6 @@ public class MapsActivity extends AppCompatActivity
     public void addMarker( LatLng latLng , boolean insert) {
         if( latLng == null )
             return;
-
         Geocoder geocoder = new Geocoder( this );
         String address;
         try {
@@ -704,14 +704,22 @@ public class MapsActivity extends AppCompatActivity
         Log.d(TAG, "onResizeCircleEnd " + geofenceCircle.toString());
         long mainCircleRadius = (long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()));
         mRadiusText.setText(String.valueOf(mainCircleRadius));
-//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-//                .map(mMap)
-//                .enabled(true)
-//                .radius(mainCircleRadius)
-//                .strokeColor(Color.RED)
-//                .fillColor(Color.TRANSPARENT)
-//                .listener(this)
-//                .build();
+        markerBuilderManager.clearCircles();
+        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+                .map(mMap)
+                .enabled(true)
+                .minRadius(DEFAULT_MIN_RADIUS_METERS)
+                .radius(mainCircleRadius)
+                .strokeColor(Color.RED)
+                .fillColor(Color.TRANSPARENT)
+                .listener(this)
+                .build();
+
+        currentLantitute = gps.getLatitude();
+        currentLongitute = gps.getLongitude();
+        LatLng latLng = new LatLng(currentLantitute, currentLongitute);
+        markerBuilderManager.onMapClick(latLng);
+        mMap.setOnMapClickListener(this);
     }
 
     @Override
