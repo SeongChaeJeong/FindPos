@@ -1,6 +1,7 @@
 package com.demco.goopy.findtoto;
 
 import android.Manifest;
+import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -8,7 +9,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.location.Geocoder;
 import android.location.LocationManager;
@@ -20,7 +21,9 @@ import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -74,7 +77,6 @@ import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
 
 // https://github.com/googlemaps/android-samples 참고
-// https://github.com/ac-opensource/MarkerBuilder 움직이는 서클
 
 public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback,
@@ -92,6 +94,11 @@ public class MapsActivity extends AppCompatActivity
     private ImageView mCurrentImageView;
     private ImageView mGpsOffImageView;
     private ImageView mScreenSaveImageView;
+
+    private View mResizerRootView;
+    private TextView tvResizer;
+    private BitmapDescriptor mResizeMeterShow;
+    private Marker mResizeShowMarker;
     private GoogleMap mMap;
     private boolean mPermissionDenied = false;
     private boolean mGPSRecevie = true;
@@ -102,7 +109,7 @@ public class MapsActivity extends AppCompatActivity
     // 수자가 클수록 줌인 됨
     // 0 ~ 19
     private static final float DEFAULT_ZOOM = 16.5f;
-    private static final int DEFAULT_MIN_RADIUS_METERS = 50;
+    private static final int DEFAULT_MIN_RADIUS_METERS = 30;
     private static final double DEFAULT_RADIUS_METERS = 200;
     private MarkerBuilderManagerV2 markerBuilderManager;
 
@@ -115,6 +122,7 @@ public class MapsActivity extends AppCompatActivity
 
     private double currentLantitute = defaultLatitude;
     private double currentLongitute = defaultLongitude;
+    private long mainCircleRadius = (long)DEFAULT_RADIUS_METERS;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
     private List<Marker> tempMarkerLocations = new ArrayList<>();
@@ -125,10 +133,7 @@ public class MapsActivity extends AppCompatActivity
     private View capView;
     private ViewGroup mainLayout;
     private ImageView imageView;
-    private TextView mRadiusText;
     private Bitmap mbitmap;
-
-
 
     private float[] arrayPinColors = new float[] {
             BitmapDescriptorFactory.HUE_AZURE,
@@ -193,13 +198,16 @@ public class MapsActivity extends AppCompatActivity
         PositionDataSingleton.getInstance().setGPSRecevie(true);
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        mRadiusText = (TextView) findViewById(R.id.main_circle_text);
         mSearchImageView = (ImageView) findViewById(R.id.search_pos_list);
         mCurrentImageView= (ImageView) findViewById(R.id.gps_current);
         mCloseImageView = (ImageView) findViewById(R.id.app_close);
         mScreenSaveImageView = (ImageView) findViewById(R.id.screen_save);
         mGpsOffImageView = (ImageView) findViewById(R.id.gps_off);
         mainLayout = (ViewGroup) findViewById(R.id.main_layout);
+
+        mResizerRootView = LayoutInflater.from(this).inflate(R.layout.marker_layout, null);
+        tvResizer = (TextView) mResizerRootView.findViewById(R.id.tv_marker);
+        mResizeMeterShow = BitmapDescriptorFactory.fromBitmap(createDrawableFromView(this, mResizerRootView));
 
         mSearchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -287,8 +295,10 @@ public class MapsActivity extends AppCompatActivity
                     if(intent.getAction().compareTo("location_update") == 0 && mGPSRecevie) {
                         currentLantitute = (double)intent.getExtras().get(LATITUDE_POS);
                         currentLongitute = (double)intent.getExtras().get(LONGITUDE_POS);
-                        markerBuilderManager.onMapClick(new LatLng(currentLantitute,currentLongitute));
-                        mMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(currentLantitute,currentLongitute)));
+                        LatLng latLng = new LatLng(currentLantitute,currentLongitute);
+                        markerBuilderManager.onMapClick(latLng);
+                        updateRadiusShow(latLng);
+                        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
                     }
                 }
             };
@@ -337,15 +347,32 @@ public class MapsActivity extends AppCompatActivity
             mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
             mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
             markerBuilderManager.onMapClick(latLng);
+            updateRadiusShow(latLng);
         }
         else {
             Toast.makeText(this, R.string.gps_off, Toast.LENGTH_LONG).show();
         }
     }
 
+    private void updateRadiusShow(LatLng latLng) {
+        if(mResizeShowMarker != null) {
+            mResizeShowMarker.remove();
+        }
+
+        mResizerRootView = LayoutInflater.from(this).inflate(R.layout.marker_layout, null);
+        tvResizer = (TextView) mResizerRootView.findViewById(R.id.tv_marker);
+        StringBuilder sb = new StringBuilder();
+        sb.append(Long.toString(mainCircleRadius));
+        sb.append("m");
+
+        tvResizer.setText(sb.toString());
+        mResizeShowMarker = mMap.addMarker(new MarkerOptions()
+                .position(latLng)
+                .icon(BitmapDescriptorFactory.fromBitmap(createDrawableFromView(this, mResizerRootView))));
+    }
+
     private void syncFileDataToDB() {
         totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
-        boolean timeoutError = false;
         Realm realm = Realm.getDefaultInstance();
         realm.beginTransaction();
 
@@ -401,33 +428,33 @@ public class MapsActivity extends AppCompatActivity
         startService(i);
     }
 
+    // View를 Bitmap으로 변환
+    private Bitmap createDrawableFromView(Context context, View view) {
+
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        ((Activity) context).getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+        view.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        view.measure(displayMetrics.widthPixels, displayMetrics.heightPixels);
+        view.layout(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels);
+        view.buildDrawingCache();
+        Bitmap bitmap = Bitmap.createBitmap(view.getMeasuredWidth(), view.getMeasuredHeight(), Bitmap.Config.ARGB_8888);
+
+        Canvas canvas = new Canvas(bitmap);
+        view.draw(canvas);
+
+        return bitmap;
+    }
+
     private void setUpMyPostionMark() {
-        Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.ic_error);
         markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
                 .map(mMap)
                 .enabled(true)
                 .minRadius(DEFAULT_MIN_RADIUS_METERS)
-                .radius(DEFAULT_RADIUS_METERS)
+                .radius(mainCircleRadius)
                 .strokeColor(Color.RED)
-                .centerBitmap(bm)
                 .fillColor(Color.TRANSPARENT)
-//                .resizerIcon(R.drawable.ic_person_pin_circle)
-//                .centerIcon(R.drawable.ic_person_pin_circle)
                 .listener(this)
                 .build();
-
-//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-//                .circleId(circleId)
-//                .strokeWidth(strokeWidth)
-//                .strokeColor(strokeColor)
-//                .minRadius(minRadius)
-//                .maxRadius(maxRadius)
-//                .centerIcon(centerIcon)
-//                .centerBitmap(centerBitmap)
-//                .resizerIcon(resizerIcon)
-//                .centerOffsetHorizontal(centerOffsetHorizontal)
-//                .centerOffsetVertical(centerOffsetVertical)
-//                .build();
     }
 
 
@@ -469,7 +496,6 @@ public class MapsActivity extends AppCompatActivity
     private void enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
-            // Permission to access the location is missing.
             PermissionUtils.requestPermission(this, LOCATION_PERMISSION_REQUEST_CODE,
                     Manifest.permission.ACCESS_FINE_LOCATION, true);
         } else if (mMap != null) {
@@ -702,8 +728,7 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onResizeCircleEnd(GeofenceCircle geofenceCircle) {
         Log.d(TAG, "onResizeCircleEnd " + geofenceCircle.toString());
-        long mainCircleRadius = (long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()));
-        mRadiusText.setText(String.valueOf(mainCircleRadius));
+        mainCircleRadius = (long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()));
         markerBuilderManager.clearCircles();
         markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
                 .map(mMap)
@@ -720,7 +745,9 @@ public class MapsActivity extends AppCompatActivity
         LatLng latLng = new LatLng(currentLantitute, currentLongitute);
         markerBuilderManager.onMapClick(latLng);
         mMap.setOnMapClickListener(this);
+        updateRadiusShow(latLng);
     }
+
 
     @Override
     public void onMoveCircleEnd(GeofenceCircle geofenceCircle) {

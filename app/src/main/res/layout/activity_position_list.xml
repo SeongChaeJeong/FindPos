@@ -82,7 +82,7 @@
 
             <EditText
                 android:id="@+id/market_category"
-                android:layout_width="@dimen/title_length"
+                android:layout_width="90dp"
                 android:layout_height="wrap_content"
                 android:layout_centerVertical="true"
                 android:layout_marginLeft="5dp"
@@ -92,6 +92,7 @@
 
             <Spinner
                 android:id="@+id/biz_category_spinner"
+                android:scrollbarSize="13dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
@@ -117,7 +118,7 @@
 
             <EditText
                 android:id="@+id/market_address"
-                android:layout_width="300dp"
+                android:layout_width="350dp"
                 android:layout_height="wrap_content"
                 android:layout_centerVertical="true"
                 android:layout_marginLeft="5dp"
