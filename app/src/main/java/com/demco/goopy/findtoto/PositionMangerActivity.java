@@ -73,6 +73,7 @@ public class PositionMangerActivity extends AppCompatActivity
     private List<String> bizCategoryList = new ArrayList<>();
     private double focusLatitude = defaultLatitude;
     private double focusLongitude = defaultLongitude;
+    private String focusMarkerId = "";
     private ToToPosition selectedItem = null;
 
     private String selectItemUniqeId;
@@ -104,6 +105,7 @@ public class PositionMangerActivity extends AppCompatActivity
             if(null != bundle) {
                 focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
                 focusLongitude = bundle.getDouble(LONGITUDE_POS, defaultLongitude);
+                focusMarkerId = bundle.getString("tempMarkerId", "");
             }
         }
 
@@ -117,7 +119,8 @@ public class PositionMangerActivity extends AppCompatActivity
             getSupportActionBar().setTitle(R.string.position_list_title);
             getSupportActionBar().setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.toolbarColor)));
 
-            String filePath = RECEIVEFILE_FOLDER_FULLPATH + "/address.xls" +  getString(R.string.check_file);
+            String folderPath = getExternalFilesDir(null).getAbsolutePath();
+            String filePath = folderPath + "/address.xls" +  getString(R.string.check_file);
             ((TextView)findViewById(R.id.empty_alert)).setText(filePath);
             return;
         }

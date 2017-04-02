@@ -41,7 +41,9 @@ import com.demco.goopy.findtoto.Data.PositionDataSingleton;
 import com.demco.goopy.findtoto.Data.ToToPosition;
 import com.demco.goopy.findtoto.Data.ToToPositionRealmObj;
 import com.demco.goopy.findtoto.System.GPS_Service;
+import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
+import com.google.android.gms.identity.intents.Address;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -64,6 +66,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import io.realm.DynamicRealm;
@@ -155,8 +158,6 @@ public class MapsActivity extends AppCompatActivity
                     .radius(radiusMeters)
                     .strokeColor(Color.BLUE)
                     .strokeWidth(5)
-//                    .strokeColor(mStrokeColorArgb)
-//                    .fillColor(mFillColorArgb)
                     .clickable(true));
         }
 
@@ -165,20 +166,9 @@ public class MapsActivity extends AppCompatActivity
         }
 
         public void setClickable(boolean clickable) {
-//            Toast.makeText(MapsActivity.this, "setClickable", Toast.LENGTH_SHORT).show();
             mCircle.setClickable(clickable);
         }
     }
-
-    RealmMigration migration = new RealmMigration() {
-
-        @Override
-        public void migrate(DynamicRealm realm, long oldVersion, long newVersion) {
-
-        }
-    };
-
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -256,6 +246,7 @@ public class MapsActivity extends AppCompatActivity
             @Override
             public void onClick(View v) {
                 mGPSRecevie = false;
+                PositionDataSingleton.getInstance().setGPSRecevie(false);
                 Toast.makeText(MapsActivity.this, R.string.gps_receive_off, Toast.LENGTH_SHORT).show();
             }
         });
@@ -506,7 +497,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onCircleClick(Circle circle) {
-//        mCameraTextView.setText("onCircleClick: " + mMap.getCameraPosition().toString());
+//        Toast.makeText(this, "Circle Click", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -521,6 +512,19 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public boolean onMarkerClick(Marker marker) {
         clearAllDBMarker();
+        for(int i = 0; i < tempMarkerLocations.size(); ++i) {
+            Marker temp = tempMarkerLocations.get(i);
+            if(temp.getId().compareTo(marker.getId()) == 0) {
+                if(markerCircleMap.containsKey(temp.getId())) {
+                        DraggableCircle circle = markerCircleMap.get(temp.getId());
+                        circle.remove();
+                        markerCircleMap.remove(temp.getId());
+                }
+                temp.remove();
+                tempMarkerLocations.remove(temp);
+                break;
+            }
+        }
         Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
         intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
         intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
@@ -610,13 +614,7 @@ public class MapsActivity extends AppCompatActivity
     public void addMarker( LatLng latLng , boolean insert) {
         if( latLng == null )
             return;
-        Geocoder geocoder = new Geocoder( this );
-        String address;
-        try {
-            address = geocoder.getFromLocation( latLng.latitude, latLng.longitude, 2 ).get( 1 ).getAddressLine( 0 );
-        } catch( IOException e ) {
-            address = "";
-        }
+        String address = AddressConvert.getAddress(this, latLng.latitude, latLng.longitude);
         Log.e( "addMarker", address );
         addMarker( 0, latLng, address );
     }

@@ -61,7 +61,7 @@ public class AddressConvert {
 
 
                 if (address != null && address.size() > 1) {
-                    String currentLocationAddress = address.get(1).getAddressLine(0).toString();
+                    String currentLocationAddress = address.get(0).getAddressLine(0).toString();
                     nowAddress  = currentLocationAddress;
                 }
                 else if (address != null && address.size() > 0) {

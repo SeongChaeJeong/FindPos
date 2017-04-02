@@ -55,10 +55,14 @@ public class FileManager {
     public static int LAST_INDEX = 10;
 
 
-    public static final String RECEIVEFILE_DIR = "/Demco";
-    public static final String RECEIVEFILE_FOLDER_FULLPATH = Environment.getExternalStorageDirectory().getAbsolutePath() + RECEIVEFILE_DIR;
+    public static final String RECEIVEFILE_DIR = "/dmko";
+    public static final String RECEIVEFILE_FOLDER_FULLPATH = Environment.getDataDirectory().getAbsolutePath() + RECEIVEFILE_DIR;
+    public static final String RECEIVEFILE_FOLDER_FULLPATH2 = Environment.getExternalStorageDirectory().getAbsolutePath() + RECEIVEFILE_DIR;
+
+
 
     public static File createDirIfNotExistsDir(String path) {
+
         File file = new File(path);
         if (!file.exists()) {
             if (!file.mkdirs()) {
@@ -70,7 +74,7 @@ public class FileManager {
 
     public static boolean saveExcelFile(Context context, String fileName) {
 
-        File destDir = createDirIfNotExistsDir(RECEIVEFILE_FOLDER_FULLPATH);
+        createDirIfNotExistsDir(context.getExternalFilesDir(null).getAbsolutePath());
         // check if available and not read only
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly()) {
             Log.w("FileUtils", "Storage not available or read only");
@@ -167,7 +171,7 @@ public class FileManager {
         }
 
         // Create a path where we will place our List of objects on external storage
-        File file = new File(destDir, fileName);
+        File file = new File(context.getExternalFilesDir(null), fileName);
         FileOutputStream os = null;
 
         try {
@@ -198,10 +202,9 @@ public class FileManager {
 //            Toast.makeText(context, R.string.permission_not_exist, Toast.LENGTH_LONG).show();
             return false;
         }
-
+        String folderPath = context.getExternalFilesDir(null).getAbsolutePath();
         List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
-        File destDir = createDirIfNotExistsDir(RECEIVEFILE_FOLDER_FULLPATH);
-
+        File destDir = createDirIfNotExistsDir(folderPath);
 
         try{
             // Creating Input Stream
