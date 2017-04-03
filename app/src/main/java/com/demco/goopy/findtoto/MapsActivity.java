@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -111,7 +112,7 @@ public class MapsActivity extends AppCompatActivity
 
     // 수자가 클수록 줌인 됨
     // 0 ~ 19
-    private static final float DEFAULT_ZOOM = 16.5f;
+    private static final float DEFAULT_ZOOM = 16f;
     private static final int DEFAULT_MIN_RADIUS_METERS = 30;
     private static final double DEFAULT_RADIUS_METERS = 200;
     private MarkerBuilderManagerV2 markerBuilderManager;
@@ -178,6 +179,8 @@ public class MapsActivity extends AppCompatActivity
             startGPSService();
         }
         mGPSRecevie = true;
+
+        final View rootView = getWindow().getDecorView().getRootView();
 
         RealmConfiguration realmConfiguration = new RealmConfiguration.Builder(this)
                 .name(Realm.DEFAULT_REALM_NAME)
@@ -254,15 +257,8 @@ public class MapsActivity extends AppCompatActivity
         mScreenSaveImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                capView = getWindow().getDecorView();
                 try {
-//                    screenShot(capView);
-//                    mainLayout.setDrawingCacheEnabled(false);
-//                    mainLayout.setDrawingCacheEnabled(true);
-//                    Bitmap bmScreen = mainLayout.getDrawingCache();
-//                    createImage(bmScreen);
-                    screenShot(mainLayout);
-
+                    store(getScreenShot(rootView), "asdf.png");
                 }
                 catch (Exception e) {
                     Toast.makeText(MapsActivity.this, R.string.command_failed, Toast.LENGTH_SHORT).show();
@@ -270,6 +266,14 @@ public class MapsActivity extends AppCompatActivity
             }
         });
 
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
@@ -317,6 +321,7 @@ public class MapsActivity extends AppCompatActivity
             new AddLoadMarkerTask().execute();
         }
 
+        addTempMarkersToMap();
         enableMyLocation();
         setUpMyPostionMark();
         getCurrentGPSInfo();
@@ -414,6 +419,22 @@ public class MapsActivity extends AppCompatActivity
         return true;
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+
+//        LatLng latLng;
+//        latLng.latitude;
+//        latLng.longitude;
+//        ArrayList<testparcel> testing = this.getIntent().getParcelableArrayListExtra("extraextra");
+    }
+
     private void startGPSService() {
         Intent i = new Intent(getApplicationContext(),GPS_Service.class);
         startService(i);
@@ -448,7 +469,6 @@ public class MapsActivity extends AppCompatActivity
                 .build();
     }
 
-
     private void addLoadMarkersToMap() {
         totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
         bizCategoryColorMap.clear();
@@ -475,6 +495,20 @@ public class MapsActivity extends AppCompatActivity
                 markerCircleMap.put(marker.getId(), circle);
             }
             toToPosition.state = VISIBLE;
+        }
+    }
+
+    private void addTempMarkersToMap() {
+        for(Marker tempMarker : tempMarkerLocations) {
+            MarkerOptions markerOptions = new MarkerOptions().position( tempMarker.getPosition() );
+            markerOptions.icon( BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE) );
+            Marker marker = mMap.addMarker( markerOptions );
+            if( false == tempMarkerLocations.contains( marker ) ) {
+                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+                mCircles.add(circle);
+                tempMarkerLocations.add( marker );
+                markerCircleMap.put(marker.getId(), circle);
+            }
         }
     }
 
@@ -544,6 +578,18 @@ public class MapsActivity extends AppCompatActivity
         intent.putExtra(LATITUDE_POS, latLng.latitude);
         intent.putExtra(LONGITUDE_POS, latLng.longitude);
         startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
+    }
+
+    private void clearAllTempMarker() {
+        for(Marker lastMarker : tempMarkerLocations) {
+            if(markerCircleMap.containsKey(lastMarker.getId())) {
+                DraggableCircle circle = markerCircleMap.get(lastMarker.getId());
+                circle.remove();
+                markerCircleMap.remove(lastMarker.getId());
+            }
+            tempMarkerLocations.remove(lastMarker);
+            lastMarker.remove();
+        }
     }
 
     private void clearAllDBMarker() {
@@ -842,5 +888,56 @@ public class MapsActivity extends AppCompatActivity
 //        mCurrentPhotoPath = "file:" + image.getAbsolutePath();
         return image;
     }
+
+
+    public static void store(Bitmap bm, String fileName){
+        final String dirPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Screenshots";
+        File dir = new File(dirPath);
+        if(!dir.exists())
+            dir.mkdirs();
+        File file = new File(dirPath, fileName);
+        try {
+            FileOutputStream fOut = new FileOutputStream(file);
+            bm.compress(Bitmap.CompressFormat.PNG, 85, fOut);
+            fOut.flush();
+            fOut.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static Bitmap getScreenShot(View view) {
+        View screenView = view.getRootView();
+        screenView.setDrawingCacheEnabled(true);
+        Bitmap bitmap = Bitmap.createBitmap(screenView.getDrawingCache());
+        screenView.setDrawingCacheEnabled(false);
+        return bitmap;
+    }
+
+//    private void takeSnapshot() {
+//        if (mMap == null) {
+//            return;
+//        }
+//
+//        final ImageView snapshotHolder = (ImageView) findViewById(R.id.snapshot_holder);
+//
+//        final GoogleMap.SnapshotReadyCallback callback = new GoogleMap.SnapshotReadyCallback() {
+//            @Override
+//            public void onSnapshotReady(Bitmap snapshot) {
+//                // Callback is called from the main thread, so we can modify the ImageView safely.
+//                snapshotHolder.setImageBitmap(snapshot);
+//            }
+//        };
+//
+//        mMap.snapshot(callback);
+//    }
+//
+//    /**
+//     * Called when the clear button is clicked.
+//     */
+//    public void onClearScreenshot(View view) {
+//        ImageView snapshotHolder = (ImageView) findViewById(R.id.snapshot_holder);
+//        snapshotHolder.setImageDrawable(null);
+//    }
 
 }

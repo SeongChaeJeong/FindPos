@@ -7,8 +7,8 @@ android {
         applicationId "com.demco.goopy.findtoto"
         minSdkVersion 16
         targetSdkVersion 25
-        versionCode 103
-        versionName "1.0.3"
+        versionCode 105
+        versionName "1.0.5"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
     }
@@ -23,7 +23,7 @@ android {
         // multidex 때문에 느려지니 dev 때에는 그냥 롤리팝 이상으로 했다.
         // https://developer.android.com/studio/build/multidex.html#dev-build
         dev {
-            minSdkVersion 22
+            minSdkVersion 21
         }
         prod {
             minSdkVersion 16
