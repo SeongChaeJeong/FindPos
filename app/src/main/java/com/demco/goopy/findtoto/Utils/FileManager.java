@@ -60,7 +60,6 @@ public class FileManager {
     public static final String RECEIVEFILE_FOLDER_FULLPATH2 = Environment.getExternalStorageDirectory().getAbsolutePath() + RECEIVEFILE_DIR;
 
 
-
     public static File createDirIfNotExistsDir(String path) {
 
         File file = new File(path);
@@ -193,6 +192,35 @@ public class FileManager {
 
         return success;
     }
+    public static HSSFSheet getReadExcelSheet(Context context, String filename) {
+        if (!isExternalStorageAvailable() || isExternalStorageReadOnly())
+        {
+            Log.w("FileUtils", "Storage not available or read only");
+            return null;
+        }
+        String folderPath = context.getExternalFilesDir(null).getAbsolutePath();
+        File destDir = createDirIfNotExistsDir(folderPath);
+
+        try {
+            // Creating Input Stream
+            File file = new File(destDir, filename);
+            if (file.exists() == false) {
+                return null;
+            }
+            FileInputStream myInput = new FileInputStream(file);
+            // Create a POIFSFileSystem object
+            POIFSFileSystem myFileSystem = new POIFSFileSystem(myInput);
+            // Create a workbook using the File System
+            HSSFWorkbook myWorkBook = new HSSFWorkbook(myFileSystem);
+            // Get the first sheet from workbook
+            HSSFSheet mySheet = myWorkBook.getSheetAt(0);
+            return mySheet;
+        }
+        catch (Exception e){
+            e.printStackTrace();
+            return null;
+        }
+    }
 
     public static boolean readExcelFile(Context context, String filename) {
 
@@ -214,22 +242,19 @@ public class FileManager {
                 return false;
             }
             FileInputStream myInput = new FileInputStream(file);
-
             // Create a POIFSFileSystem object
             POIFSFileSystem myFileSystem = new POIFSFileSystem(myInput);
-
             // Create a workbook using the File System
             HSSFWorkbook myWorkBook = new HSSFWorkbook(myFileSystem);
-
             // Get the first sheet from workbook
             HSSFSheet mySheet = myWorkBook.getSheetAt(0);
-
             /** We now need something to iterate through the cells.**/
             Iterator<Row> rowIter = mySheet.rowIterator();
             // 헤더 부분
             if(rowIter.hasNext()) {
                 HSSFRow myRow = (HSSFRow) rowIter.next();
             }
+
 
             positionList.clear();
             boolean timeoutError = false;
