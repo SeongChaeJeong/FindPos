@@ -59,6 +59,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -258,7 +259,9 @@ public class MapsActivity extends AppCompatActivity
             @Override
             public void onClick(View v) {
                 try {
-                    store(getScreenShot(rootView), "asdf.png");
+//                    store(getScreenShot(rootView), "asdf.png");
+                    Bitmap bitmap = takeScreenshot();
+                    saveBitmap(bitmap);
                 }
                 catch (Exception e) {
                     Toast.makeText(MapsActivity.this, R.string.command_failed, Toast.LENGTH_SHORT).show();
@@ -274,9 +277,9 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+        if(loadPositionDataFromDB()) {
+            addLoadMarkersToMap();
+        }
     }
 
     @Override
@@ -321,7 +324,6 @@ public class MapsActivity extends AppCompatActivity
             new AddLoadMarkerTask().execute();
         }
 
-        addTempMarkersToMap();
         enableMyLocation();
         setUpMyPostionMark();
         getCurrentGPSInfo();
@@ -342,6 +344,7 @@ public class MapsActivity extends AppCompatActivity
             LatLng latLng = new LatLng(currentLantitute, currentLongitute);
             mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
             mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
+            markerBuilderManager.clearCircles();
             markerBuilderManager.onMapClick(latLng);
             updateRadiusShow(latLng);
         }
@@ -421,6 +424,7 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
+        outState.putLong("mainCircleRadius", mainCircleRadius);
         super.onSaveInstanceState(outState);
 
     }
@@ -428,6 +432,7 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
+        savedInstanceState.getLong("mainCircleRadius", (long)DEFAULT_RADIUS_METERS);
 
 //        LatLng latLng;
 //        latLng.latitude;
@@ -912,6 +917,35 @@ public class MapsActivity extends AppCompatActivity
         Bitmap bitmap = Bitmap.createBitmap(screenView.getDrawingCache());
         screenView.setDrawingCacheEnabled(false);
         return bitmap;
+    }
+
+
+    public Bitmap takeScreenshot()
+    {
+        View rootView = findViewById(android.R.id.content).getRootView();
+        rootView.setDrawingCacheEnabled(true);
+        return rootView.getDrawingCache();
+    }
+
+    public void saveBitmap(Bitmap bitmap)
+    {
+        File imagePath = new File(Environment.getExternalStorageDirectory() + "/screenshot.png");
+        FileOutputStream fos;
+        try
+        {
+            fos = new FileOutputStream(imagePath);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            fos.flush();
+            fos.close();
+        }
+        catch (FileNotFoundException e)
+        {
+            Log.e("GREC", e.getMessage(), e);
+        }
+        catch (IOException e)
+        {
+            Log.e("GREC", e.getMessage(), e);
+        }
     }
 
 //    private void takeSnapshot() {
