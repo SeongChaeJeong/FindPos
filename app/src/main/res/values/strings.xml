@@ -202,8 +202,10 @@
     <string name="vr_more_padded_button">More</string>
     <string name="vr_soh_button">SOH</string>
     <string name="vr_sfo_button">SFO</string>
-    <string name="wait_for_map_load_title">데이터 로드 중.</string>
-    <string name="wait_for_map_load">"address.xls" 데이터를 지도에 로드하는 중입니다...</string>
+    <string name="wait_for_map_load_title">파일데이터 로드 중</string>
+    <string name="wait_for_map_load_title_db">DB데이터 로드 중</string>
+    <string name="wait_for_map_load">"address.xls" 파일데이터를 지도에 로드하는 중입니다...</string>
+    <string name="wait_for_map_load_db">DB데이터를 지도에 로드하는 중입니다...</string>
     <string name="width">Width</string>
     <string name="zoom_buttons">Zoom Buttons</string>
     <string name="zoom_gestures">Zoom Gestures</string>
