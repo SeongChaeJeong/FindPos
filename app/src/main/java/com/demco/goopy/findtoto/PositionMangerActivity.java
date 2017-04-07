@@ -23,7 +23,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -51,7 +50,6 @@ import static com.demco.goopy.findtoto.Data.ToToPosition.NONE;
 import static com.demco.goopy.findtoto.MapsActivity.RESULT_ITEM_SELECT;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
-import static com.demco.goopy.findtoto.Utils.FileManager.RECEIVEFILE_FOLDER_FULLPATH;
 
 /**
  * Created by goopy on 2017-03-25.
@@ -279,6 +277,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                     targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, newPosition.addressData);
                                 }
                                 catch(TimeoutException e) {
+                                    Toast.makeText(PositionMangerActivity.this, R.string.map_address_timeout, Toast.LENGTH_LONG).show();
                                     targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
                                 }
                                 if(targetLatLng == null) {
@@ -293,7 +292,6 @@ public class PositionMangerActivity extends AppCompatActivity
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.add_ok, Toast.LENGTH_SHORT).show();
                                 initEditText();
-                                syncDBtoFileData();
                             }
                         })
                         .onNegative(new MaterialDialog.SingleButtonCallback() {
@@ -351,6 +349,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                         targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, selectedItem.addressData);
                                     }
                                     catch(TimeoutException e) {
+                                        Toast.makeText(PositionMangerActivity.this, R.string.map_address_timeout, Toast.LENGTH_LONG).show();
                                         targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
                                     }
                                     if(targetLatLng == null) {
@@ -362,7 +361,6 @@ public class PositionMangerActivity extends AppCompatActivity
                                 }
                                 realm.commitTransaction();
                                 mAdapter.notifyDataSetChanged();
-                                syncDBtoFileData();
                             }
                         })
                         .onNegative(new MaterialDialog.SingleButtonCallback() {
@@ -401,7 +399,6 @@ public class PositionMangerActivity extends AppCompatActivity
                                 dataset.remove(selectedItem);
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
-                                syncDBtoFileData();
                             }
 
                         })

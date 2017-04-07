@@ -84,7 +84,6 @@ import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmResults;
 
-import static com.demco.goopy.findtoto.Data.ToToPosition.VISIBLE;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
 import static com.demco.goopy.findtoto.Utils.FileManager.ADDRESS1;
@@ -149,13 +148,10 @@ public class MapsActivity extends AppCompatActivity
     private double currentLongitute = defaultLongitude;
     private long mainCircleRadius = (long)DEFAULT_RADIUS_METERS;
 
-    private List<DraggableCircle> mCircles = new ArrayList<>(1);
-;
     private Map<String, MapMarker> visibleMarkers = new HashMap<>();
     private List<MapMarker> tempMarkers = new ArrayList<>();
     private List<ToToPosition> totoPositions = new ArrayList<>();
     private Map<String, Float> bizCategoryColorMap = new HashMap<>();
-    //    private Map<String, ArrayList<ToToPosition>> positionCityGroupMap = new HashMap<>();
     private View capView;
     private ViewGroup mainLayout;
     private ImageView imageView;
@@ -252,7 +248,6 @@ public class MapsActivity extends AppCompatActivity
         mSearchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-//                clearAllDBMarker();
                 Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
                 startActivityForResult(intent, REQUEST_SEARCH);
             }
@@ -394,7 +389,7 @@ public class MapsActivity extends AppCompatActivity
 
                 RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
                 toToPositionRealmObjRealmResults.deleteAllFromRealm();
-                boolean timeoutError = false;
+                int timeoutError = 0;
                 int rowIndex = 0;
                 while(rowIter.hasNext()) {
                     ++rowIndex;
@@ -433,17 +428,20 @@ public class MapsActivity extends AppCompatActivity
                     toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
                     LatLng targetLatLng = null;
                     try {
-//                        if (timeoutError) {
-//                            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-//                        } else {
-                            targetLatLng = AddressConvert.getLatLng(MapsActivity.this, toToPosition.addressData);
+                        targetLatLng = AddressConvert.getLatLng(MapsActivity.this, toToPosition.addressData);
                         if (targetLatLng == null) {
                             targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
                         }
-//                        }
                     } catch (TimeoutException e) {
-                        timeoutError = true;
                         targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                        if(timeoutError++ < 10) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(MapsActivity.this, R.string.map_address_timeout, Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }
                     }
                     toToPosition.latLng = targetLatLng;
                     positionList.add(toToPosition);
@@ -519,7 +517,6 @@ public class MapsActivity extends AppCompatActivity
                         public void run() {
                             LatLng markerPoint = position.latLng;
                             if (bounds.contains(markerPoint)) {
-//                                loadMakerData(position, true);
                                 if (bizCategoryColorMap.containsKey(position.biz) == false) {
                                     bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
                                 }
@@ -543,24 +540,9 @@ public class MapsActivity extends AppCompatActivity
                                         Log.d(TAG, mapMarker.toString());
                                     }
                                 }
-//                                if (bizCategoryColorMap.containsKey(position.biz) == false) {
-//                                    bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
-//                                }
-//
-//                                if (mMap != null) {
-//                                    if (false == visibleMarkers.containsKey(position.uniqueId)) {
-//                                        Marker marker = mMap.addMarker(new MarkerOptions()
-//                                                .position(position.latLng)
-//                                                .title(position.name)
-//                                                .snippet(position.biz)
-//                                                .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
-//
-//                                        // 지도에 등록
-//                                        visibleMarkers.put(position.uniqueId, marker);
-//                                    }
-//                                }
                             }
                             else {
+                                // 지도에서 지우기
 //                                loadMakerData(position, false);
 //                                if (visibleMarkers.containsKey(position.uniqueId)) {
 //                                    // 지도에서 지우기
@@ -575,30 +557,6 @@ public class MapsActivity extends AppCompatActivity
                 dataLoadComplete = true;
             }
         }.run();
-    }
-
-    private void loadMakerList() {
-//        if (gps.isGetLocation()) {
-//            currentLantitute = gps.getLatitude();
-//            currentLongitute = gps.getLongitude();
-//        }
-        String address = AddressConvert.getAddress(this, currentLantitute, currentLongitute);
-        String[] splitAddress = TextUtils.split(address, " ");
-        List<String> addressList = new ArrayList<>();
-        for(int i = 0; i < splitAddress.length; ++i) {
-            if(getString(R.string.korea).compareToIgnoreCase(splitAddress[i]) == 0) {
-                continue;
-            }
-            addressList.add(splitAddress[i]);
-        }
-//        String city = addressList.get(0);
-//        if(positionCityGroupMap.containsKey(city)) {
-//            List<ToToPosition> cityList = positionCityGroupMap.get(city);
-//            for(ToToPosition position: cityList) {
-//                loadMakerData(position);
-//            }
-//        }
-//        String gu = addressList.get(1);
     }
 
 
@@ -672,28 +630,6 @@ public class MapsActivity extends AppCompatActivity
                 .icon(BitmapDescriptorFactory.fromBitmap(createDrawableFromView(this, mResizerRootView))));
     }
 
-    private void syncFileDataToDB() {
-        totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
-        Realm realm = Realm.getDefaultInstance();
-        realm.beginTransaction();
-
-        RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
-        toToPositionRealmObjRealmResults.deleteAllFromRealm();
-
-        for(ToToPosition toToPosition : totoPositions) {
-            ToToPositionRealmObj obj = realm.createObject(ToToPositionRealmObj.class);
-            obj.setUniqueId(toToPosition.uniqueId);
-            obj.setBizState(toToPosition.bizState);
-            obj.setTargetName(toToPosition.name);
-            obj.setTargetBiz(toToPosition.biz);
-            obj.setPhone(toToPosition.phone);
-            obj.setAddressData(toToPosition.addressData);
-            obj.setLatitude(toToPosition.latLng.latitude);
-            obj.setLongtitude(toToPosition.latLng.longitude);
-        }
-        realm.commitTransaction();
-    }
-
     private boolean hasPositionDataFromDB() {
         Realm realm = Realm.getDefaultInstance();
         realm.beginTransaction();
@@ -706,38 +642,6 @@ public class MapsActivity extends AppCompatActivity
         realm.close();
         return true;
     }
-
-//    private boolean loadPositionDataFromDB() {
-//        Realm realm = Realm.getDefaultInstance();
-//        realm.beginTransaction();
-//        RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
-//        if(toToPositionRealmObjRealmResults.isEmpty()) {
-//            realm.commitTransaction();
-//            realm.close();
-//            return false;
-//        }
-//        List<ToToPosition> loadPositions = PositionDataSingleton.getInstance().getMarkerPositions();
-//        loadPositions.clear();
-//        bizCategoryColorMap.clear();
-//        for(int i = 0; i< toToPositionRealmObjRealmResults.size(); ++i) {
-//            ToToPositionRealmObj obj = (ToToPositionRealmObj)toToPositionRealmObjRealmResults.get(i);
-//            ToToPosition position = new ToToPosition();
-//            position.uniqueId = obj.getUniqueId();
-//            position.name = obj.getTargetName();
-//            position.biz = obj.getTargetBiz();
-//            position.addressData = obj.getAddressData();
-//            position.bizState = obj.getBizState();
-//            position.phone = obj.getPhone();
-//            LatLng latLng = new LatLng(obj.getLatitude(), obj.getLongtitude());
-//            position.latLng = latLng;
-//            loadPositions.add(position);
-////            loadMakerData(position, t);
-//        }
-//
-//        realm.commitTransaction();
-//        realm.close();
-//        return true;
-//    }
 
     private void loadMakerData(ToToPosition position, boolean visible) {
         if (visible) {
@@ -833,50 +737,6 @@ public class MapsActivity extends AppCompatActivity
                 .listener(this)
                 .build();
     }
-
-    private void addLoadMarkersToMap() {
-        totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
-        bizCategoryColorMap.clear();
-        bizCategoryColorMap.put(getResources().getString(R.string.none), BitmapDescriptorFactory.HUE_ORANGE);
-        int i = 0;
-        for(ToToPosition toToPosition : totoPositions) {
-            String targetName = toToPosition.name;
-            String targetBiz = toToPosition.biz;
-            if(bizCategoryColorMap.containsKey(targetBiz) == false) {
-                bizCategoryColorMap.put(targetBiz, arrayPinColors[i++ % arrayPinColors.length]);
-            }
-            LatLng targetLatLng = toToPosition.latLng;
-            Marker marker = mMap.addMarker(new MarkerOptions()
-                    .position(targetLatLng)
-                    .title(targetName)
-                    .snippet(targetBiz)
-                    .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(targetBiz))));
-            // .icon(getMarkerIcon("#dadfsf"));
-
-//            if( false == dbMarkerLocations.contains( marker ) ) {
-//                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-//                mCircles.add(circle);
-//                toToPositionsLoadMap.add(toToPosition);
-//                dbMarkerLocations.add( marker );
-//                markerCircleMap.put(marker.getId(), circle);
-//            }
-            toToPosition.state = VISIBLE;
-        }
-    }
-
-//    private void addTempMarkersToMap() {
-//        for(Marker tempMarker : tempMarkerLocations) {
-//            MarkerOptions markerOptions = new MarkerOptions().position( tempMarker.getPosition() );
-//            markerOptions.icon( BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE) );
-//            Marker marker = mMap.addMarker( markerOptions );
-//            if( false == tempMarkerLocations.contains( marker ) ) {
-//                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-//                mCircles.add(circle);
-//                tempMarkerLocations.add( marker );
-//                markerCircleMap.put(marker.getId(), circle);
-//            }
-//        }
-//    }
 
     public BitmapDescriptor getMarkerIcon(String color) {
         float[] hsv = new float[3];
@@ -1256,5 +1116,27 @@ public class MapsActivity extends AppCompatActivity
 //        ImageView snapshotHolder = (ImageView) findViewById(R.id.snapshot_holder);
 //        snapshotHolder.setImageDrawable(null);
 //    }
+
+    private void syncFileDataToDB() {
+        totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
+        Realm realm = Realm.getDefaultInstance();
+        realm.beginTransaction();
+
+        RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
+        toToPositionRealmObjRealmResults.deleteAllFromRealm();
+
+        for(ToToPosition toToPosition : totoPositions) {
+            ToToPositionRealmObj obj = realm.createObject(ToToPositionRealmObj.class);
+            obj.setUniqueId(toToPosition.uniqueId);
+            obj.setBizState(toToPosition.bizState);
+            obj.setTargetName(toToPosition.name);
+            obj.setTargetBiz(toToPosition.biz);
+            obj.setPhone(toToPosition.phone);
+            obj.setAddressData(toToPosition.addressData);
+            obj.setLatitude(toToPosition.latLng.latitude);
+            obj.setLongtitude(toToPosition.latLng.longitude);
+        }
+        realm.commitTransaction();
+    }
 
 }
