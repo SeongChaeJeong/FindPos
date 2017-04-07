@@ -12,12 +12,12 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.location.Geocoder;
 import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -45,7 +45,6 @@ import com.demco.goopy.findtoto.Data.ToToPositionRealmObj;
 import com.demco.goopy.findtoto.System.GPS_Service;
 import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
-import com.google.android.gms.identity.intents.Address;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -55,6 +54,7 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
@@ -71,19 +71,17 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
-import io.realm.DynamicRealm;
 import io.realm.Realm;
 import io.realm.RealmConfiguration;
-import io.realm.RealmMigration;
 import io.realm.RealmResults;
 
 import static com.demco.goopy.findtoto.Data.ToToPosition.VISIBLE;
@@ -97,7 +95,6 @@ import static com.demco.goopy.findtoto.Utils.FileManager.CHANNEL;
 import static com.demco.goopy.findtoto.Utils.FileManager.LAST_INDEX;
 import static com.demco.goopy.findtoto.Utils.FileManager.NAME;
 import static com.demco.goopy.findtoto.Utils.FileManager.PHONE;
-import static com.demco.goopy.findtoto.Utils.FileManager.getReadExcelSheet;
 
 // https://github.com/googlemaps/android-samples 참고
 
@@ -106,7 +103,11 @@ public class MapsActivity extends AppCompatActivity
         GoogleMap.OnCircleClickListener,
         GoogleMap.OnMarkerClickListener,
         GoogleMap.OnMyLocationButtonClickListener,
-        GoogleMap.OnMapClickListener, GoogleMap.OnMapLongClickListener, GoogleMap.OnCameraIdleListener,
+        GoogleMap.OnMapClickListener,
+        GoogleMap.OnMapLongClickListener,
+        GoogleMap.OnCameraIdleListener,
+        GoogleMap.OnCameraMoveListener,
+        GoogleMap.OnCameraMoveStartedListener,
         CircleManagerListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -149,17 +150,18 @@ public class MapsActivity extends AppCompatActivity
     private long mainCircleRadius = (long)DEFAULT_RADIUS_METERS;
 
     private List<DraggableCircle> mCircles = new ArrayList<>(1);
-    private List<Marker> tempMarkerLocations = new ArrayList<>();
-    private List<Marker> dbMarkerLocations = new ArrayList<>();
-    private List<ToToPosition> toToPositionsLoadMap = new ArrayList<>();
-    private Map<String, DraggableCircle> markerCircleMap = new HashMap<>();
+;
+    private Map<String, MapMarker> visibleMarkers = new HashMap<>();
+    private List<MapMarker> tempMarkers = new ArrayList<>();
     private List<ToToPosition> totoPositions = new ArrayList<>();
     private Map<String, Float> bizCategoryColorMap = new HashMap<>();
-    private Map<String, ArrayList<ToToPosition>> positionCityGroupMap = new HashMap<>();
+    //    private Map<String, ArrayList<ToToPosition>> positionCityGroupMap = new HashMap<>();
     private View capView;
     private ViewGroup mainLayout;
     private ImageView imageView;
     private Bitmap mbitmap;
+    private boolean dataLoadComplete = false;
+    private Handler handler = new Handler();
 
     private float[] arrayPinColors = new float[] {
             BitmapDescriptorFactory.HUE_AZURE,
@@ -170,6 +172,29 @@ public class MapsActivity extends AppCompatActivity
             BitmapDescriptorFactory.HUE_ROSE,
             BitmapDescriptorFactory.HUE_VIOLET,
             BitmapDescriptorFactory.HUE_YELLOW
+    };
+
+    private class MapMarker {
+        public ToToPosition toToPosition;
+        public Marker marker;
+        public DraggableCircle circle;
+
+        public void remove() {
+            marker.remove();
+            circle.remove();
+        }
+
+        @Override
+        public String toString() {
+            String data;
+            if(null != toToPosition) {
+                data = toToPosition.name + " " + toToPosition.addressData;
+            }
+            else {
+                data = marker.getPosition().toString();
+            }
+            return data;
+        }
     };
 
     private class DraggableCircle {
@@ -227,7 +252,7 @@ public class MapsActivity extends AppCompatActivity
         mSearchImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                clearAllDBMarker();
+//                clearAllDBMarker();
                 Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
                 startActivityForResult(intent, REQUEST_SEARCH);
             }
@@ -248,20 +273,16 @@ public class MapsActivity extends AppCompatActivity
         mCloseImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(tempMarkerLocations.isEmpty()) {
+                if(tempMarkers.isEmpty()) {
                     Toast.makeText(MapsActivity.this, R.string.no_remove_marker, Toast.LENGTH_SHORT).show();
                     return;
                 }
-                int lastIndex = tempMarkerLocations.size() - 1;
-                Marker lastMarker = tempMarkerLocations.get(lastIndex);
-                if(null != lastMarker) {
-                    if(markerCircleMap.containsKey(lastMarker.getId())) {
-                        DraggableCircle circle = markerCircleMap.get(lastMarker.getId());
-                        circle.remove();
-                        markerCircleMap.remove(lastMarker.getId());
-                    }
-                    tempMarkerLocations.remove(lastMarker);
-                    lastMarker.remove();
+                int lastIndex = tempMarkers.size() - 1;
+                MapMarker lastMapMarker = tempMarkers.get(lastIndex);
+                if(null != lastMapMarker) {
+                    lastMapMarker.marker.remove();
+                    lastMapMarker.circle.remove();
+                    tempMarkers.remove(lastMapMarker);
                 }
             }
         });
@@ -298,12 +319,6 @@ public class MapsActivity extends AppCompatActivity
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
         mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
-        if(hasPositionDataFromDB()) {
-            new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title_db, R.string.wait_for_map_load_db).execute(true);
-        }
-        else {
-            new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title, R.string.wait_for_map_load).execute(false);
-        }
 
         enableMyLocation();
         setUpMyPostionMark();
@@ -312,10 +327,23 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMapClickListener(this);
         mMap.setOnMapLongClickListener(this);
         mMap.setOnCameraIdleListener(this);
+        mMap.setOnCameraMoveStartedListener(this);
+        mMap.setOnCameraMoveListener(this);
         mMap.setOnMarkerClickListener(this);
         mMap.setOnCircleClickListener(this);
+
+        if(hasPositionDataFromDB()) {
+            new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title_db, R.string.wait_for_map_load_db).execute(true);
+        }
+        else {
+            new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title, R.string.wait_for_map_load).execute(false);
+        }
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
 
     private class AddLoadMarkerTask extends AsyncTask<Boolean, String, String> {
         ProgressDialog progressDialog;
@@ -327,17 +355,17 @@ public class MapsActivity extends AppCompatActivity
             mContext = context;
             mTitle = title;
             mMessage = message;
-        }
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
             progressDialog = new ProgressDialog(mContext);
             progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
             progressDialog.setCancelable(false);
             progressDialog.setTitle(mTitle);
             progressDialog.setMessage(getResources().getString(mMessage));
             progressDialog.show();
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
         }
 
         @Override
@@ -349,10 +377,11 @@ public class MapsActivity extends AppCompatActivity
             List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
             positionList.clear();
             markerColorIndex = 0;
-            if(true) {
-//            if(params[0] == false) {
+            if(params[0] == false) {
                 HSSFSheet mySheet = FileManager.getReadExcelSheet(MapsActivity.this,"address.xls");
                 if(null == mySheet) {
+                    realm.commitTransaction();
+                    realm.close();
                     return null;
                 }
                 int totalCount = mySheet.getLastRowNum();
@@ -371,23 +400,30 @@ public class MapsActivity extends AppCompatActivity
                     ++rowIndex;
                     publishProgress("progress", Integer.toString(rowIndex), "지도 마킹 " + Integer.toString(rowIndex) + "번 작업중");
                     String[] rawData = new String[LAST_INDEX];
-                    for (int i = 0; i < LAST_INDEX; ++i) {
-                        rawData[i] = "";
-                    }
+                    Arrays.fill(rawData, ""); //특정 값으로 초기
+
                     HSSFRow myRow = (HSSFRow) rowIter.next();
                     Iterator<Cell> cellIter = myRow.cellIterator();
                     int i = 0;
                     final ToToPosition toToPosition = new ToToPosition();
                     toToPosition.uniqueId = UUID.randomUUID().toString();
                     while (cellIter.hasNext()) {
+                        if(i == LAST_INDEX) {
+                            break;
+                        }
                         HSSFCell myCell = (HSSFCell) cellIter.next();
                         if (ADDRESS1 <= i && i <= ADDRESS5) {
                             toToPosition.addressList.add(myCell.toString());
                             i++;
                         } else {
-                            rawData[i++] = myCell.toString();
+                            try {
+                                rawData[i++] = myCell.toString();
+                            }
+                            catch (ArrayIndexOutOfBoundsException e) {
+                                Log.e(TAG, e.getMessage().toString());
+                            }
+
                         }
-                        //Log.d("FileUtils", "Cell Value: " +  myCell.toString());
                     }
                     toToPosition.name = rawData[NAME];
                     toToPosition.biz = rawData[BUSINESS];
@@ -397,36 +433,20 @@ public class MapsActivity extends AppCompatActivity
                     toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
                     LatLng targetLatLng = null;
                     try {
-                        if (timeoutError) {
-                            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-                        } else {
+//                        if (timeoutError) {
+//                            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+//                        } else {
                             targetLatLng = AddressConvert.getLatLng(MapsActivity.this, toToPosition.addressData);
-                            if (targetLatLng == null) {
-                                targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-                            }
+                        if (targetLatLng == null) {
+                            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
                         }
+//                        }
                     } catch (TimeoutException e) {
                         timeoutError = true;
                         targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
                     }
                     toToPosition.latLng = targetLatLng;
-                    String city = toToPosition.addressList.get(0);
-                    String gu = toToPosition.addressList.get(1);
-                    if(positionCityGroupMap.containsKey(city)) {
-                        List<ToToPosition> values = positionCityGroupMap.get(city);
-                        values.add(toToPosition);
-                    }
-                    else {
-                        positionCityGroupMap.put(city, new ArrayList<ToToPosition>());
-                    }
                     positionList.add(toToPosition);
-                    if(positionCityGroupMap.containsKey(gu)) {
-                        List<ToToPosition> values = positionCityGroupMap.get(gu);
-                        values.add(toToPosition);
-                    }
-                    else {
-                        positionCityGroupMap.put(gu, new ArrayList<ToToPosition>());
-                    }
 
                     // 파일에서 읽은 엑셀 정보를 디비 컬럼에 넣음
                     ToToPositionRealmObj obj = realm.createObject(ToToPositionRealmObj.class);
@@ -438,11 +458,6 @@ public class MapsActivity extends AppCompatActivity
                     obj.setAddressData(toToPosition.addressData);
                     obj.setLatitude(toToPosition.latLng.latitude);
                     obj.setLongtitude(toToPosition.latLng.longitude);
-//                    runOnUiThread(new Runnable() {
-//                        public void run() {
-//                            loadMakerData(toToPosition);
-//                        }
-//                    });
                 }
             }
             else {
@@ -458,23 +473,19 @@ public class MapsActivity extends AppCompatActivity
                     ToToPositionRealmObj obj = (ToToPositionRealmObj)toToPositionRealmObjRealmResults.get(i);
                     final ToToPosition position = new ToToPosition();
                     position.uniqueId = obj.getUniqueId();
-                    position.name = obj.getTargetName();
+                    position.name = obj.getTargetName() != null ? obj.getTargetName() : "";
                     position.biz = obj.getTargetBiz();
                     position.addressData = obj.getAddressData();
                     position.bizState = obj.getBizState();
                     position.phone = obj.getPhone();
                     position.latLng = new LatLng(obj.getLatitude(), obj.getLongtitude());
                     positionList.add(position);
-                    runOnUiThread(new Runnable() {
-                        public void run() {
-                            loadMakerData(position);
-                        }
-                    });
                     publishProgress("progress", Integer.toString(i), "지도 마킹 " + Integer.toString(i) + "번 작업중");
                 }
             }
 
             realm.commitTransaction();
+            realm.close();
             return null;
         }
 
@@ -491,16 +502,86 @@ public class MapsActivity extends AppCompatActivity
 
         @Override
         protected void onPostExecute(String result) {
-            loadMakerList();
+            placeMarkers(handler);
             progressDialog.dismiss();
         }
     };
 
+    public void placeMarkers(final Handler handler) {
+        final List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
+        new Thread() {
+            @Override
+            public void run(){
+                final LatLngBounds bounds = mMap.getProjection().getVisibleRegion().latLngBounds;
+                for(final ToToPosition position: positionList) {
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            LatLng markerPoint = position.latLng;
+                            if (bounds.contains(markerPoint)) {
+//                                loadMakerData(position, true);
+                                if (bizCategoryColorMap.containsKey(position.biz) == false) {
+                                    bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
+                                }
+
+                                if (mMap != null) {
+                                    if (false == visibleMarkers.containsKey(position.uniqueId)) {
+                                        Marker marker = mMap.addMarker(new MarkerOptions()
+                                                .position(position.latLng)
+                                                .title(position.name)
+                                                .snippet(position.biz)
+                                                .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
+                                        DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+
+                                        MapMarker mapMarker = new MapMarker();
+                                        mapMarker.toToPosition = position;
+                                        mapMarker.marker = marker;
+                                        mapMarker.circle = circle;
+
+                                        // 지도에 등록
+                                        visibleMarkers.put(position.uniqueId, mapMarker);
+                                        Log.d(TAG, mapMarker.toString());
+                                    }
+                                }
+//                                if (bizCategoryColorMap.containsKey(position.biz) == false) {
+//                                    bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
+//                                }
+//
+//                                if (mMap != null) {
+//                                    if (false == visibleMarkers.containsKey(position.uniqueId)) {
+//                                        Marker marker = mMap.addMarker(new MarkerOptions()
+//                                                .position(position.latLng)
+//                                                .title(position.name)
+//                                                .snippet(position.biz)
+//                                                .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
+//
+//                                        // 지도에 등록
+//                                        visibleMarkers.put(position.uniqueId, marker);
+//                                    }
+//                                }
+                            }
+                            else {
+//                                loadMakerData(position, false);
+//                                if (visibleMarkers.containsKey(position.uniqueId)) {
+//                                    // 지도에서 지우기
+//                                    visibleMarkers.get(position.uniqueId).remove();
+//                                    // 등록 목록에서 지우기
+//                                    visibleMarkers.remove(position.uniqueId);
+//                                }
+                            }
+                        }
+                    });
+                }
+                dataLoadComplete = true;
+            }
+        }.run();
+    }
+
     private void loadMakerList() {
-        if (gps.isGetLocation()) {
-            currentLantitute = gps.getLatitude();
-            currentLongitute = gps.getLongitude();
-        }
+//        if (gps.isGetLocation()) {
+//            currentLantitute = gps.getLatitude();
+//            currentLongitute = gps.getLongitude();
+//        }
         String address = AddressConvert.getAddress(this, currentLantitute, currentLongitute);
         String[] splitAddress = TextUtils.split(address, " ");
         List<String> addressList = new ArrayList<>();
@@ -510,13 +591,13 @@ public class MapsActivity extends AppCompatActivity
             }
             addressList.add(splitAddress[i]);
         }
-        String city = addressList.get(0);
-        if(positionCityGroupMap.containsKey(city)) {
-            List<ToToPosition> cityList = positionCityGroupMap.get(city);
-            for(ToToPosition position: cityList) {
-                loadMakerData(position);
-            }
-        }
+//        String city = addressList.get(0);
+//        if(positionCityGroupMap.containsKey(city)) {
+//            List<ToToPosition> cityList = positionCityGroupMap.get(city);
+//            for(ToToPosition position: cityList) {
+//                loadMakerData(position);
+//            }
+//        }
 //        String gu = addressList.get(1);
     }
 
@@ -524,9 +605,6 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-//        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-//                .findFragmentById(R.id.map);
-//        mapFragment.getMapAsync(this);
     }
 
     @Override
@@ -629,56 +707,88 @@ public class MapsActivity extends AppCompatActivity
         return true;
     }
 
-    private boolean loadPositionDataFromDB() {
-        Realm realm = Realm.getDefaultInstance();
-        realm.beginTransaction();
-        RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
-        if(toToPositionRealmObjRealmResults.isEmpty()) {
-            realm.commitTransaction();
-            realm.close();
-            return false;
-        }
-        List<ToToPosition> loadPositions = PositionDataSingleton.getInstance().getMarkerPositions();
-        loadPositions.clear();
-        bizCategoryColorMap.clear();
-        for(int i = 0; i< toToPositionRealmObjRealmResults.size(); ++i) {
-            ToToPositionRealmObj obj = (ToToPositionRealmObj)toToPositionRealmObjRealmResults.get(i);
-            ToToPosition position = new ToToPosition();
-            position.uniqueId = obj.getUniqueId();
-            position.name = obj.getTargetName();
-            position.biz = obj.getTargetBiz();
-            position.addressData = obj.getAddressData();
-            position.bizState = obj.getBizState();
-            position.phone = obj.getPhone();
-            LatLng latLng = new LatLng(obj.getLatitude(), obj.getLongtitude());
-            position.latLng = latLng;
-            loadPositions.add(position);
-            loadMakerData(position);
-        }
+//    private boolean loadPositionDataFromDB() {
+//        Realm realm = Realm.getDefaultInstance();
+//        realm.beginTransaction();
+//        RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
+//        if(toToPositionRealmObjRealmResults.isEmpty()) {
+//            realm.commitTransaction();
+//            realm.close();
+//            return false;
+//        }
+//        List<ToToPosition> loadPositions = PositionDataSingleton.getInstance().getMarkerPositions();
+//        loadPositions.clear();
+//        bizCategoryColorMap.clear();
+//        for(int i = 0; i< toToPositionRealmObjRealmResults.size(); ++i) {
+//            ToToPositionRealmObj obj = (ToToPositionRealmObj)toToPositionRealmObjRealmResults.get(i);
+//            ToToPosition position = new ToToPosition();
+//            position.uniqueId = obj.getUniqueId();
+//            position.name = obj.getTargetName();
+//            position.biz = obj.getTargetBiz();
+//            position.addressData = obj.getAddressData();
+//            position.bizState = obj.getBizState();
+//            position.phone = obj.getPhone();
+//            LatLng latLng = new LatLng(obj.getLatitude(), obj.getLongtitude());
+//            position.latLng = latLng;
+//            loadPositions.add(position);
+////            loadMakerData(position, t);
+//        }
+//
+//        realm.commitTransaction();
+//        realm.close();
+//        return true;
+//    }
 
-        realm.commitTransaction();
-        realm.close();
-        return true;
+    private void loadMakerData(ToToPosition position, boolean visible) {
+        if (visible) {
+            if (bizCategoryColorMap.containsKey(position.biz) == false) {
+                bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
+            }
+
+            if (mMap != null) {
+                if (false == visibleMarkers.containsKey(position.uniqueId)) {
+                    Marker marker = mMap.addMarker(new MarkerOptions()
+                            .position(position.latLng)
+                            .title(position.name)
+                            .snippet(position.biz)
+                            .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
+                    DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+
+                    MapMarker mapMarker = new MapMarker();
+                    mapMarker.toToPosition = position;
+                    mapMarker.marker = marker;
+                    mapMarker.circle = circle;
+
+                    // 지도에 등록
+                    visibleMarkers.put(position.uniqueId, mapMarker);
+                }
+            }
+        }
+        else {
+            if (visibleMarkers.containsKey(position.uniqueId)) {
+                // 지도에서 지우기
+                MapMarker mapMarker = visibleMarkers.get(position.uniqueId);
+                mapMarker.marker.remove();
+                mapMarker.circle.remove();
+                // 등록 목록에서 지우기
+                visibleMarkers.remove(position.uniqueId);
+            }
+        }
     }
 
-    private void loadMakerData(ToToPosition position) {
-        if(bizCategoryColorMap.containsKey(position.biz) == false) {
-                bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
-        }
-        Marker marker = mMap.addMarker(new MarkerOptions()
-                .position(position.latLng)
-                .title(position.name)
-                .snippet(position.biz)
-                .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
-
-        if( false == dbMarkerLocations.contains( marker ) ) {
+    private void tempMarkerData(LatLng latLng, String title) {
+        if (mMap != null) {
+            MarkerOptions markerOptions = new MarkerOptions().position(latLng);
+            markerOptions.title( title );
+            markerOptions.icon( BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE) );
+            Marker marker = mMap.addMarker( markerOptions );
             DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-            mCircles.add(circle);
-            toToPositionsLoadMap.add(position);
-            dbMarkerLocations.add( marker );
-            markerCircleMap.put(marker.getId(), circle);
+            MapMarker mapMarker = new MapMarker();
+            mapMarker.marker = marker;
+            mapMarker.circle = circle;
+            tempMarkers.add(mapMarker);
+            marker.showInfoWindow();
         }
-
     }
 
     @Override
@@ -741,32 +851,32 @@ public class MapsActivity extends AppCompatActivity
                     .title(targetName)
                     .snippet(targetBiz)
                     .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(targetBiz))));
-                    // .icon(getMarkerIcon("#dadfsf"));
+            // .icon(getMarkerIcon("#dadfsf"));
 
-            if( false == dbMarkerLocations.contains( marker ) ) {
-                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-                mCircles.add(circle);
-                toToPositionsLoadMap.add(toToPosition);
-                dbMarkerLocations.add( marker );
-                markerCircleMap.put(marker.getId(), circle);
-            }
+//            if( false == dbMarkerLocations.contains( marker ) ) {
+//                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+//                mCircles.add(circle);
+//                toToPositionsLoadMap.add(toToPosition);
+//                dbMarkerLocations.add( marker );
+//                markerCircleMap.put(marker.getId(), circle);
+//            }
             toToPosition.state = VISIBLE;
         }
     }
 
-    private void addTempMarkersToMap() {
-        for(Marker tempMarker : tempMarkerLocations) {
-            MarkerOptions markerOptions = new MarkerOptions().position( tempMarker.getPosition() );
-            markerOptions.icon( BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE) );
-            Marker marker = mMap.addMarker( markerOptions );
-            if( false == tempMarkerLocations.contains( marker ) ) {
-                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-                mCircles.add(circle);
-                tempMarkerLocations.add( marker );
-                markerCircleMap.put(marker.getId(), circle);
-            }
-        }
-    }
+//    private void addTempMarkersToMap() {
+//        for(Marker tempMarker : tempMarkerLocations) {
+//            MarkerOptions markerOptions = new MarkerOptions().position( tempMarker.getPosition() );
+//            markerOptions.icon( BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE) );
+//            Marker marker = mMap.addMarker( markerOptions );
+//            if( false == tempMarkerLocations.contains( marker ) ) {
+//                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+//                mCircles.add(circle);
+//                tempMarkerLocations.add( marker );
+//                markerCircleMap.put(marker.getId(), circle);
+//            }
+//        }
+//    }
 
     public BitmapDescriptor getMarkerIcon(String color) {
         float[] hsv = new float[3];
@@ -795,23 +905,24 @@ public class MapsActivity extends AppCompatActivity
         return false;
     }
 
-    @Override
-    public void onCameraIdle() {
-    }
 
     @Override
     public boolean onMarkerClick(Marker marker) {
-        clearAllDBMarker();
-        for(int i = 0; i < tempMarkerLocations.size(); ++i) {
-            Marker temp = tempMarkerLocations.get(i);
-            if(temp.getId().compareTo(marker.getId()) == 0) {
-                if(markerCircleMap.containsKey(temp.getId())) {
-                        DraggableCircle circle = markerCircleMap.get(temp.getId());
-                        circle.remove();
-                        markerCircleMap.remove(temp.getId());
-                }
+        double latitude = defaultLatitude;
+        double longitude = defaultLongitude;
+        for(int i = 0; i < tempMarkers.size(); ++i) {
+            MapMarker temp = tempMarkers.get(i);
+            if(temp.marker.getId().compareTo(marker.getId()) == 0) {
+                latitude = temp.marker.getPosition().latitude;
+                longitude = temp.marker.getPosition().longitude;
                 temp.remove();
-                tempMarkerLocations.remove(temp);
+                tempMarkers.remove(temp);
+                String logdata = String.format("temp lat: %f, long: %f === mark lat: %f, long %f",
+                        latitude, longitude, marker.getPosition().latitude, marker.getPosition().longitude);
+                StringBuilder sb = new StringBuilder();
+                sb.append("onMarkerClick ");
+                sb.append(logdata);
+                Log.d(TAG, sb.toString());
                 break;
             }
         }
@@ -830,7 +941,6 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onMapLongClick(LatLng latLng) {
-        clearAllDBMarker();
         Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
         intent.putExtra(LATITUDE_POS, latLng.latitude);
         intent.putExtra(LONGITUDE_POS, latLng.longitude);
@@ -838,37 +948,13 @@ public class MapsActivity extends AppCompatActivity
     }
 
     private void clearAllTempMarker() {
-        for(Marker lastMarker : tempMarkerLocations) {
-            if(markerCircleMap.containsKey(lastMarker.getId())) {
-                DraggableCircle circle = markerCircleMap.get(lastMarker.getId());
-                circle.remove();
-                markerCircleMap.remove(lastMarker.getId());
-            }
-            tempMarkerLocations.remove(lastMarker);
-            lastMarker.remove();
-        }
     }
 
     private void clearAllDBMarker() {
-        List<Marker> clearLoccation = new ArrayList<>();
-        clearLoccation.addAll(dbMarkerLocations);
-        for(Marker marker : clearLoccation) {
-            if(null != marker) {
-                if(markerCircleMap.containsKey(marker.getId())) {
-                    DraggableCircle circle = markerCircleMap.get(marker.getId());
-                    circle.remove();
-                    markerCircleMap.remove(marker.getId());
-                }
-                dbMarkerLocations.remove(marker);
-                // ?? totoPositionLoadMap?? 이건 어떻게 할까? 지울까?
-                marker.remove();
-            }
-        }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-//        addLoadMarkersToMap();
         super.onActivityResult(requestCode, resultCode, data);
         switch (resultCode) {
             case REQUEST_SEARCH:
@@ -926,23 +1012,7 @@ public class MapsActivity extends AppCompatActivity
     public void addMarker( float color, LatLng latLng, String title ) {
         if( latLng == null || mMap == null )
             return;
-
-        MarkerOptions markerOptions = new MarkerOptions().position( latLng );
-        if( title.isEmpty() == false )
-            markerOptions.title( title );
-
-        if( color == 0 )
-            color = BitmapDescriptorFactory.HUE_ORANGE;
-
-        markerOptions.icon( BitmapDescriptorFactory.defaultMarker( color ) );
-        Marker marker = mMap.addMarker( markerOptions );
-        if( false == tempMarkerLocations.contains( marker ) ) {
-            DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-            mCircles.add(circle);
-            tempMarkerLocations.add( marker );
-            markerCircleMap.put(marker.getId(), circle);
-        }
-        marker.showInfoWindow();
+        tempMarkerData(latLng, title);
     }
 
     @Override
@@ -979,6 +1049,25 @@ public class MapsActivity extends AppCompatActivity
         return false;
     }
 
+
+    @Override
+    public void onCameraIdle() {
+        Log.d(TAG, "onCameraIdle");
+        if(dataLoadComplete) {
+            placeMarkers(handler);
+        }
+    }
+
+    @Override
+    public void onCameraMove() {
+        Log.d(TAG, "onCameraMove");
+    }
+
+    @Override
+    public void onCameraMoveStarted(int i) {
+        Log.d(TAG, "onCameraMoveStarted " + String.valueOf(i));
+
+    }
 
     @Override
     public void onInitCreateCircle(GeofenceCircle geofenceCircle) {
