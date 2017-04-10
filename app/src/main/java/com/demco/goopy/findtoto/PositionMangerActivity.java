@@ -79,7 +79,6 @@ public class PositionMangerActivity extends AppCompatActivity
     private int markerType = -1;
     private String focusMarkerId = "";
     private ToToPosition selectedItem = null;
-    private String targetMarkerId;
     private String selectItemUniqeId;
     Toolbar myToolbar = null;
     EditText searchText = null;
@@ -111,7 +110,7 @@ public class PositionMangerActivity extends AppCompatActivity
                 focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
                 focusLongitude = bundle.getDouble(LONGITUDE_POS, defaultLongitude);
                 if(markerType == MARKER_LOAD) {
-                    targetMarkerId = bundle.getString(MARKER_ID);
+                    selectItemUniqeId = bundle.getString(MARKER_ID);
                 }
             }
         }
@@ -172,7 +171,7 @@ public class PositionMangerActivity extends AppCompatActivity
 
         if(markerType == MARKER_LOAD) {
             for(ToToPosition position: dataset) {
-                if(position.uniqueId.compareTo(targetMarkerId) == 0) {
+                if(position.uniqueId.compareTo(selectItemUniqeId) == 0) {
                     selectedItem = position;
                     break;
                 }
