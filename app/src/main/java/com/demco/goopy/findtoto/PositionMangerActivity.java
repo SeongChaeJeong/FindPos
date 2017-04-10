@@ -45,7 +45,8 @@ import java.util.concurrent.TimeoutException;
 
 import io.realm.Realm;
 
-import static com.demco.goopy.findtoto.Data.ToToPosition.MDDIFY;
+import static com.demco.goopy.findtoto.Data.ToToPosition.DELETE;
+import static com.demco.goopy.findtoto.Data.ToToPosition.MODIFY;
 import static com.demco.goopy.findtoto.Data.ToToPosition.NONE;
 import static com.demco.goopy.findtoto.MapsActivity.RESULT_ITEM_SELECT;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
@@ -58,9 +59,13 @@ import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
 public class PositionMangerActivity extends AppCompatActivity
         implements View.OnClickListener {
 
+    public static String MARKER_TYPE = "markerType";
+    public static String MARKER_ID = "markerID";
     public static String LATITUDE_POS = "latitudePos";
     public static String LONGITUDE_POS = "longitudePos";
 
+    public static int MARKER_TEMP = 0;
+    public static int MARKER_LOAD = 1;
     private RecyclerView mRecyclerView;
     private RecyclerView.LayoutManager mLayoutManager;
     private PositionAdapter mAdapter;
@@ -71,9 +76,10 @@ public class PositionMangerActivity extends AppCompatActivity
     private List<String> bizCategoryList = new ArrayList<>();
     private double focusLatitude = defaultLatitude;
     private double focusLongitude = defaultLongitude;
+    private int markerType = -1;
     private String focusMarkerId = "";
     private ToToPosition selectedItem = null;
-
+    private String targetMarkerId;
     private String selectItemUniqeId;
     Toolbar myToolbar = null;
     EditText searchText = null;
@@ -101,9 +107,12 @@ public class PositionMangerActivity extends AppCompatActivity
         if(null != dataIntent) {
             Bundle bundle = dataIntent.getExtras();
             if(null != bundle) {
+                markerType = bundle.getInt(MARKER_TYPE);
                 focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
                 focusLongitude = bundle.getDouble(LONGITUDE_POS, defaultLongitude);
-                focusMarkerId = bundle.getString("tempMarkerId", "");
+                if(markerType == MARKER_LOAD) {
+                    targetMarkerId = bundle.getString(MARKER_ID);
+                }
             }
         }
 
@@ -136,6 +145,8 @@ public class PositionMangerActivity extends AppCompatActivity
         bizText = (EditText)findViewById(R.id.market_category);
         addressText = (EditText)findViewById(R.id.market_address);
 
+
+
         if(focusLongitude != defaultLongitude && focusLatitude != defaultLatitude) {
             String targetAddress = AddressConvert.getAddress(this, focusLatitude, focusLongitude);
             addressText.setText(targetAddress);
@@ -158,6 +169,22 @@ public class PositionMangerActivity extends AppCompatActivity
 
             }
         });
+
+        if(markerType == MARKER_LOAD) {
+            for(ToToPosition position: dataset) {
+                if(position.uniqueId.compareTo(targetMarkerId) == 0) {
+                    selectedItem = position;
+                    break;
+                }
+            }
+
+            if(null != selectedItem) {
+                titleText.setText(selectedItem.name);
+                bizText.setText(selectedItem.biz);
+                addressText.setText(selectedItem.addressData);
+                s.setSelection(spinnerAdapter.getPosition(selectedItem.biz));
+            }
+        }
 
         Button searchBtn = (Button)findViewById(R.id.search_btn);
         Button addBtn = (Button)findViewById(R.id.add_btn);
@@ -321,7 +348,7 @@ public class PositionMangerActivity extends AppCompatActivity
                             public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
                                 // 토큰해서 각각주소에 넣기
                                 String[] splitAddressModify = TextUtils.split(addressText.getText().toString(), " ");
-                                selectedItem.state = MDDIFY;
+                                selectedItem.state = MODIFY;
                                 selectedItem.addressList.clear();
                                 for(int i = 0; i < splitAddressModify.length; ++i) {
                                     if(getString(R.string.korea).compareToIgnoreCase(splitAddressModify[i]) == 0) {
@@ -329,6 +356,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                     }
                                     selectedItem.addressList.add(splitAddressModify[i]);
                                 }
+                                selectedItem.state = MODIFY;
                                 selectedItem.addressData = TextUtils.join(" ", selectedItem.addressList);
                                 selectedItem.name = titleText.getText().toString();
                                 selectedItem.biz = bizText.getText().toString();
@@ -396,7 +424,8 @@ public class PositionMangerActivity extends AppCompatActivity
                                     obj.deleteFromRealm();
                                 }
                                 realm.commitTransaction();
-                                dataset.remove(selectedItem);
+                                selectedItem.state = DELETE;
+//                                dataset.remove(selectedItem);
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
                             }

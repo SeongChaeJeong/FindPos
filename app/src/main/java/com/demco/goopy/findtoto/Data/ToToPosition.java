@@ -13,7 +13,8 @@ public class ToToPosition {
 
     public static int NONE = 0;
     public static int VISIBLE = 1;
-    public static int MDDIFY = 2;
+    public static int MODIFY = 2;
+    public static int DELETE = 3;
 
     public String uniqueId;
     public String biz;

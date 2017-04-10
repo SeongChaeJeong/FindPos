@@ -84,8 +84,14 @@ import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmResults;
 
+import static com.demco.goopy.findtoto.Data.ToToPosition.DELETE;
+import static com.demco.goopy.findtoto.Data.ToToPosition.MODIFY;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
+import static com.demco.goopy.findtoto.PositionMangerActivity.MARKER_ID;
+import static com.demco.goopy.findtoto.PositionMangerActivity.MARKER_LOAD;
+import static com.demco.goopy.findtoto.PositionMangerActivity.MARKER_TEMP;
+import static com.demco.goopy.findtoto.PositionMangerActivity.MARKER_TYPE;
 import static com.demco.goopy.findtoto.Utils.FileManager.ADDRESS1;
 import static com.demco.goopy.findtoto.Utils.FileManager.ADDRESS5;
 import static com.demco.goopy.findtoto.Utils.FileManager.BIZSTATE;
@@ -510,6 +516,7 @@ public class MapsActivity extends AppCompatActivity
         new Thread() {
             @Override
             public void run(){
+                final List<ToToPosition> toDeleteList = new ArrayList<>();
                 final LatLngBounds bounds = mMap.getProjection().getVisibleRegion().latLngBounds;
                 for(final ToToPosition position: positionList) {
                     handler.post(new Runnable() {
@@ -522,7 +529,18 @@ public class MapsActivity extends AppCompatActivity
                                 }
 
                                 if (mMap != null) {
-                                    if (false == visibleMarkers.containsKey(position.uniqueId)) {
+                                    if(position.state == MODIFY || position.state == DELETE) {
+                                        if (visibleMarkers.containsKey(position.uniqueId)) {
+                                            // 지도에서 지우기
+                                            visibleMarkers.get(position.uniqueId).remove();
+                                            // 등록 목록에서 지우기
+                                            visibleMarkers.remove(position.uniqueId);
+                                        }
+                                        if(position.state == DELETE) {
+                                            toDeleteList.add(position);
+                                        }
+                                    }
+                                    if (false == visibleMarkers.containsKey(position.uniqueId) && position.state != DELETE) {
                                         Marker marker = mMap.addMarker(new MarkerOptions()
                                                 .position(position.latLng)
                                                 .title(position.name)
@@ -554,7 +572,11 @@ public class MapsActivity extends AppCompatActivity
                         }
                     });
                 }
+                for(ToToPosition delItem : toDeleteList) {
+                    positionList.remove(delItem);
+                }
                 dataLoadComplete = true;
+
             }
         }.run();
     }
@@ -768,11 +790,13 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public boolean onMarkerClick(Marker marker) {
+        boolean findTempTarget = false;
         double latitude = defaultLatitude;
         double longitude = defaultLongitude;
         for(int i = 0; i < tempMarkers.size(); ++i) {
             MapMarker temp = tempMarkers.get(i);
             if(temp.marker.getId().compareTo(marker.getId()) == 0) {
+                findTempTarget = true;
                 latitude = temp.marker.getPosition().latitude;
                 longitude = temp.marker.getPosition().longitude;
                 temp.remove();
@@ -786,9 +810,34 @@ public class MapsActivity extends AppCompatActivity
                 break;
             }
         }
+        MapMarker findTargetMarker = null;
+        if(false == findTempTarget) {
+            for(Map.Entry<String,MapMarker> entry: visibleMarkers.entrySet()) {
+                MapMarker mapMarker = entry.getValue();
+                if(0 == mapMarker.marker.getId().compareTo(marker.getId())) {
+                    findTargetMarker = mapMarker;
+                    break;
+                }
+            }
+        }
+
         Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-        intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
-        intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
+        if(findTempTarget) {
+            intent.putExtra(MARKER_TYPE, MARKER_TEMP);
+            intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
+            intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
+        }
+        else if(null != findTargetMarker) {
+            intent.putExtra(MARKER_TYPE, MARKER_LOAD);
+            intent.putExtra(MARKER_ID, findTargetMarker.toToPosition.uniqueId);
+            intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
+            intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
+        }
+        else {
+            Toast.makeText(this, "잘못된 마커를 터치하셨습니다.", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
         startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
         return false;
     }
@@ -815,6 +864,9 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if(dataLoadComplete) {
+            placeMarkers(handler);
+        }
         super.onActivityResult(requestCode, resultCode, data);
         switch (resultCode) {
             case REQUEST_SEARCH:
