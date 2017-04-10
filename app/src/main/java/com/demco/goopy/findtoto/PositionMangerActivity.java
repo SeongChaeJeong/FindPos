@@ -139,17 +139,11 @@ public class PositionMangerActivity extends AppCompatActivity
         getSupportActionBar().setTitle(R.string.position_list_title);
         getSupportActionBar().setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.toolbarColor)));
 
+        selectedItem = null;
         searchText = (EditText)findViewById(R.id.search_text);
         titleText = (EditText)findViewById(R.id.edit_title);
         bizText = (EditText)findViewById(R.id.market_category);
         addressText = (EditText)findViewById(R.id.market_address);
-
-
-
-        if(focusLongitude != defaultLongitude && focusLatitude != defaultLatitude) {
-            String targetAddress = AddressConvert.getAddress(this, focusLatitude, focusLongitude);
-            addressText.setText(targetAddress);
-        }
 
         s = (Spinner) findViewById(R.id.biz_category_spinner);
         spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, bizCategoryList);
@@ -165,9 +159,15 @@ public class PositionMangerActivity extends AppCompatActivity
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
-
             }
         });
+
+        initEditText();
+        if(focusLongitude != defaultLongitude && focusLatitude != defaultLatitude) {
+            String targetAddress = AddressConvert.getAddress(this, focusLatitude, focusLongitude);
+            addressText.setText(targetAddress);
+        }
+
 
         if(markerType == MARKER_LOAD) {
             for(ToToPosition position: dataset) {
@@ -532,11 +532,20 @@ public class PositionMangerActivity extends AppCompatActivity
             if(TextUtils.isEmpty(toToPosition.name) == false) {
                 customViewHolder.marketTitle.setText(toToPosition.name);
             }
+            else {
+                customViewHolder.marketTitle.setText("");
+            }
             if(TextUtils.isEmpty(toToPosition.biz) == false) {
                 customViewHolder.marketCategory.setText(toToPosition.biz);
             }
+            else {
+                customViewHolder.marketCategory.setText("");
+            }
             if(TextUtils.isEmpty(toToPosition.addressData) == false) {
                 customViewHolder.marketAddress.setText(toToPosition.addressData);
+            }
+            else {
+                customViewHolder.marketAddress.setText("");
             }
 
             customViewHolder.selectItemBtn.setOnClickListener(new View.OnClickListener() {
