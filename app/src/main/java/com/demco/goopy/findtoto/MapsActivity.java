@@ -635,6 +635,7 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
+    // 메인서클의 범위미터를 표시
     private void updateRadiusShow(LatLng latLng) {
         if(mResizeShowMarker != null) {
             mResizeShowMarker.remove();
@@ -977,6 +978,9 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onCameraMoveStarted(int i) {
+        if(i == REASON_GESTURE) {
+            PositionDataSingleton.getInstance().setGPSRecevie(false);
+        }
         Log.d(TAG, "onCameraMoveStarted " + String.valueOf(i));
 
     }
