@@ -424,7 +424,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                 }
                                 realm.commitTransaction();
                                 selectedItem.state = DELETE;
-//                                dataset.remove(selectedItem);
+                                dataset.remove(selectedItem);
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
                             }

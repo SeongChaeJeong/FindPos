@@ -224,9 +224,9 @@ public class MapsActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-        if(false == runtime_permissions()) {
-            startGPSService();
-        }
+//        if(false == runtime_permissions()) {
+//            startGPSService();
+//        }
         mGPSRecevie = true;
 
         final View rootView = getWindow().getDecorView().getRootView();
@@ -315,6 +315,19 @@ public class MapsActivity extends AppCompatActivity
         mapFragment.getMapAsync(this);
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if(false == runtime_permissions()) {
+            startGPSService();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        stopGPSService();
+    }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
@@ -731,6 +744,11 @@ public class MapsActivity extends AppCompatActivity
     private void startGPSService() {
         Intent i = new Intent(getApplicationContext(),GPS_Service.class);
         startService(i);
+    }
+
+    private void stopGPSService() {
+        Intent i = new Intent(getApplicationContext(),GPS_Service.class);
+        stopService(i);
     }
 
     // View를 Bitmap으로 변환
