@@ -12,9 +12,11 @@ public class PositionDataSingleton {
 
     private boolean GPSRecevie = true;
     private List<ToToPosition> markerPositions = null;
+    private List<ToToPosition> markerModifyPositions = null;
 
     private PositionDataSingleton() {
         markerPositions = new ArrayList<ToToPosition>();
+        markerModifyPositions = new ArrayList<ToToPosition>();
     }
 
     public static PositionDataSingleton getInstance() {
@@ -31,6 +33,10 @@ public class PositionDataSingleton {
 
     public List<ToToPosition> getMarkerPositions() {
         return markerPositions;
+    }
+
+    public List<ToToPosition> getMarkerModifyPositions() {
+        return markerModifyPositions;
     }
 
     public boolean isGPSRecevie() {

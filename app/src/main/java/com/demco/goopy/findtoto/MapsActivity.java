@@ -526,70 +526,73 @@ public class MapsActivity extends AppCompatActivity
 
     public void placeMarkers(final Handler handler) {
         final List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
+        final List<ToToPosition> modifyPositionList = PositionDataSingleton.getInstance().getMarkerModifyPositions();
         new Thread() {
             @Override
             public void run(){
-                final List<ToToPosition> toDeleteList = new ArrayList<>();
                 final LatLngBounds bounds = mMap.getProjection().getVisibleRegion().latLngBounds;
+
+                for(final ToToPosition delPos : modifyPositionList) {
+                    if (visibleMarkers.containsKey(delPos.uniqueId)) {
+                        // 지도에서 지우기
+                        visibleMarkers.get(delPos.uniqueId).remove();
+                        // 등록 목록에서 지우기
+                        visibleMarkers.remove(delPos.uniqueId);
+                    }
+
+                    if(delPos.state == MODIFY) {
+                        Marker marker = mMap.addMarker(new MarkerOptions()
+                                .position(delPos.latLng)
+                                .title(delPos.name)
+                                .snippet(delPos.biz)
+                                .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(delPos.biz))));
+                        DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+
+                        MapMarker mapMarker = new MapMarker();
+                        mapMarker.toToPosition = delPos;
+                        mapMarker.marker = marker;
+                        mapMarker.circle = circle;
+
+                        // 지도에 등록
+                        visibleMarkers.put(delPos.uniqueId, mapMarker);
+
+                    }
+                }
+                modifyPositionList.clear();
+
                 for(final ToToPosition position: positionList) {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
                             LatLng markerPoint = position.latLng;
-                            if (bounds.contains(markerPoint)) {
-                                if (bizCategoryColorMap.containsKey(position.biz) == false) {
-                                    bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
-                                }
-
-                                if (mMap != null) {
-                                    if(position.state == MODIFY || position.state == DELETE) {
-                                        if (visibleMarkers.containsKey(position.uniqueId)) {
-                                            // 지도에서 지우기
-                                            visibleMarkers.get(position.uniqueId).remove();
-                                            // 등록 목록에서 지우기
-                                            visibleMarkers.remove(position.uniqueId);
-                                        }
-                                        if(position.state == DELETE) {
-                                            toDeleteList.add(position);
-                                        }
-                                    }
-                                    if (false == visibleMarkers.containsKey(position.uniqueId) && position.state != DELETE) {
-                                        Marker marker = mMap.addMarker(new MarkerOptions()
-                                                .position(position.latLng)
-                                                .title(position.name)
-                                                .snippet(position.biz)
-                                                .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
-                                        DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-
-                                        MapMarker mapMarker = new MapMarker();
-                                        mapMarker.toToPosition = position;
-                                        mapMarker.marker = marker;
-                                        mapMarker.circle = circle;
-
-                                        // 지도에 등록
-                                        visibleMarkers.put(position.uniqueId, mapMarker);
-                                        Log.d(TAG, mapMarker.toString());
-                                    }
-                                }
+                            if (mMap == null || false == bounds.contains(markerPoint)) {
+                                return;
                             }
-                            else {
-                                // 지도에서 지우기
-//                                loadMakerData(position, false);
-//                                if (visibleMarkers.containsKey(position.uniqueId)) {
-//                                    // 지도에서 지우기
-//                                    visibleMarkers.get(position.uniqueId).remove();
-//                                    // 등록 목록에서 지우기
-//                                    visibleMarkers.remove(position.uniqueId);
-//                                }
+                            if (bizCategoryColorMap.containsKey(position.biz) == false) {
+                                bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
+                            }
+
+                            if (false == visibleMarkers.containsKey(position.uniqueId)) {
+                                Marker marker = mMap.addMarker(new MarkerOptions()
+                                        .position(position.latLng)
+                                        .title(position.name)
+                                        .snippet(position.biz)
+                                        .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
+                                DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+
+                                MapMarker mapMarker = new MapMarker();
+                                mapMarker.toToPosition = position;
+                                mapMarker.marker = marker;
+                                mapMarker.circle = circle;
+
+                                // 지도에 등록
+                                visibleMarkers.put(position.uniqueId, mapMarker);
+                                Log.d(TAG, mapMarker.toString());
                             }
                         }
                     });
                 }
-                for(ToToPosition delItem : toDeleteList) {
-                    positionList.remove(delItem);
-                }
                 dataLoadComplete = true;
-
             }
         }.run();
     }
@@ -677,43 +680,6 @@ public class MapsActivity extends AppCompatActivity
         realm.commitTransaction();
         realm.close();
         return true;
-    }
-
-    private void loadMakerData(ToToPosition position, boolean visible) {
-        if (visible) {
-            if (bizCategoryColorMap.containsKey(position.biz) == false) {
-                bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
-            }
-
-            if (mMap != null) {
-                if (false == visibleMarkers.containsKey(position.uniqueId)) {
-                    Marker marker = mMap.addMarker(new MarkerOptions()
-                            .position(position.latLng)
-                            .title(position.name)
-                            .snippet(position.biz)
-                            .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
-                    DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-
-                    MapMarker mapMarker = new MapMarker();
-                    mapMarker.toToPosition = position;
-                    mapMarker.marker = marker;
-                    mapMarker.circle = circle;
-
-                    // 지도에 등록
-                    visibleMarkers.put(position.uniqueId, mapMarker);
-                }
-            }
-        }
-        else {
-            if (visibleMarkers.containsKey(position.uniqueId)) {
-                // 지도에서 지우기
-                MapMarker mapMarker = visibleMarkers.get(position.uniqueId);
-                mapMarker.marker.remove();
-                mapMarker.circle.remove();
-                // 등록 목록에서 지우기
-                visibleMarkers.remove(position.uniqueId);
-            }
-        }
     }
 
     private void tempMarkerData(LatLng latLng, String title) {
@@ -873,12 +839,6 @@ public class MapsActivity extends AppCompatActivity
         intent.putExtra(LATITUDE_POS, latLng.latitude);
         intent.putExtra(LONGITUDE_POS, latLng.longitude);
         startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
-    }
-
-    private void clearAllTempMarker() {
-    }
-
-    private void clearAllDBMarker() {
     }
 
     @Override
@@ -1211,6 +1171,50 @@ public class MapsActivity extends AppCompatActivity
             obj.setLongtitude(toToPosition.latLng.longitude);
         }
         realm.commitTransaction();
+    }
+
+
+    private void loadMakerData(ToToPosition position, boolean visible) {
+        if (visible) {
+            if (bizCategoryColorMap.containsKey(position.biz) == false) {
+                bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
+            }
+
+            if (mMap != null) {
+                if (false == visibleMarkers.containsKey(position.uniqueId)) {
+                    Marker marker = mMap.addMarker(new MarkerOptions()
+                            .position(position.latLng)
+                            .title(position.name)
+                            .snippet(position.biz)
+                            .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
+                    DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
+
+                    MapMarker mapMarker = new MapMarker();
+                    mapMarker.toToPosition = position;
+                    mapMarker.marker = marker;
+                    mapMarker.circle = circle;
+
+                    // 지도에 등록
+                    visibleMarkers.put(position.uniqueId, mapMarker);
+                }
+            }
+        }
+        else {
+            if (visibleMarkers.containsKey(position.uniqueId)) {
+                // 지도에서 지우기
+                MapMarker mapMarker = visibleMarkers.get(position.uniqueId);
+                mapMarker.marker.remove();
+                mapMarker.circle.remove();
+                // 등록 목록에서 지우기
+                visibleMarkers.remove(position.uniqueId);
+            }
+        }
+    }
+
+    private void clearAllTempMarker() {
+    }
+
+    private void clearAllDBMarker() {
     }
 
 }

@@ -72,6 +72,7 @@ public class PositionMangerActivity extends AppCompatActivity
     protected Spinner s;
     private ArrayAdapter<String> spinnerAdapter;
     private List<ToToPosition> dataset;
+    private List<ToToPosition> dataModifySet;
     private List<ToToPosition> searchResultdataset = new ArrayList<>();
     private List<String> bizCategoryList = new ArrayList<>();
     private double focusLatitude = defaultLatitude;
@@ -90,6 +91,7 @@ public class PositionMangerActivity extends AppCompatActivity
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         dataset = PositionDataSingleton.getInstance().getMarkerPositions();
+        dataModifySet = PositionDataSingleton.getInstance().getMarkerModifyPositions();
         PositionDataSingleton.getInstance().setGPSRecevie(false);
 
         bizCategoryList.clear();
@@ -205,6 +207,13 @@ public class PositionMangerActivity extends AppCompatActivity
 
         mAdapter = new PositionAdapter(this, dataset);
         mRecyclerView.setAdapter(mAdapter);
+    }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        setResult(RESULT_OK, null);
+        finish();
     }
 
     private boolean isDefaultLatLng() {
@@ -387,6 +396,8 @@ public class PositionMangerActivity extends AppCompatActivity
                                     obj.setLongtitude(targetLatLng.longitude);
                                 }
                                 realm.commitTransaction();
+                                selectedItem.state = MODIFY;
+                                dataModifySet.add(selectedItem);
                                 mAdapter.notifyDataSetChanged();
                             }
                         })
@@ -424,6 +435,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                 }
                                 realm.commitTransaction();
                                 selectedItem.state = DELETE;
+                                dataModifySet.add(selectedItem);
                                 dataset.remove(selectedItem);
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
