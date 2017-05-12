@@ -180,6 +180,8 @@ public class PositionMangerActivity extends AppCompatActivity
             }
 
             if(null != selectedItem) {
+                selectedItem.state = MODIFY;
+                dataModifySet.add(selectedItem);
                 titleText.setText(selectedItem.name);
                 bizText.setText(selectedItem.biz);
                 addressText.setText(selectedItem.addressData);
@@ -324,6 +326,8 @@ public class PositionMangerActivity extends AppCompatActivity
 
                                 realm.commitTransaction();
                                 dataset.add(newPosition);
+                                dataModifySet.remove(selectedItem);
+                                dataModifySet.add(newPosition);
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.add_ok, Toast.LENGTH_SHORT).show();
                                 initEditText();
@@ -397,6 +401,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                 }
                                 realm.commitTransaction();
                                 selectedItem.state = MODIFY;
+                                dataModifySet.remove(selectedItem);
                                 dataModifySet.add(selectedItem);
                                 mAdapter.notifyDataSetChanged();
                             }
@@ -435,6 +440,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                 }
                                 realm.commitTransaction();
                                 selectedItem.state = DELETE;
+                                dataModifySet.remove(selectedItem);
                                 dataModifySet.add(selectedItem);
                                 dataset.remove(selectedItem);
                                 mAdapter.notifyDataSetChanged();

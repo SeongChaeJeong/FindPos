@@ -84,7 +84,6 @@ import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmResults;
 
-import static com.demco.goopy.findtoto.Data.ToToPosition.DELETE;
 import static com.demco.goopy.findtoto.Data.ToToPosition.MODIFY;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
@@ -107,9 +106,9 @@ public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback,
         GoogleMap.OnCircleClickListener,
         GoogleMap.OnMarkerClickListener,
+        GoogleMap.OnMarkerDragListener,
         GoogleMap.OnMyLocationButtonClickListener,
         GoogleMap.OnMapClickListener,
-        GoogleMap.OnMapLongClickListener,
         GoogleMap.OnCameraIdleListener,
         GoogleMap.OnCameraMoveListener,
         GoogleMap.OnCameraMoveStartedListener,
@@ -339,12 +338,12 @@ public class MapsActivity extends AppCompatActivity
         getCurrentGPSInfo();
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
-        mMap.setOnMapLongClickListener(this);
         mMap.setOnCameraIdleListener(this);
         mMap.setOnCameraMoveStartedListener(this);
         mMap.setOnCameraMoveListener(this);
         mMap.setOnMarkerClickListener(this);
         mMap.setOnCircleClickListener(this);
+        mMap.setOnMarkerDragListener(this);
 
         if(hasPositionDataFromDB()) {
             new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title_db, R.string.wait_for_map_load_db).execute(true);
@@ -541,11 +540,15 @@ public class MapsActivity extends AppCompatActivity
                     }
 
                     if(delPos.state == MODIFY) {
+                        if (bizCategoryColorMap.containsKey(delPos.biz) == false) {
+                            bizCategoryColorMap.put(delPos.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
+                        }
                         Marker marker = mMap.addMarker(new MarkerOptions()
                                 .position(delPos.latLng)
                                 .title(delPos.name)
                                 .snippet(delPos.biz)
                                 .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(delPos.biz))));
+                        marker.setDraggable(true);
                         DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
 
                         MapMarker mapMarker = new MapMarker();
@@ -578,6 +581,7 @@ public class MapsActivity extends AppCompatActivity
                                         .title(position.name)
                                         .snippet(position.biz)
                                         .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
+                                marker.setDraggable(true);
                                 DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
 
                                 MapMarker mapMarker = new MapMarker();
@@ -688,6 +692,7 @@ public class MapsActivity extends AppCompatActivity
             markerOptions.title( title );
             markerOptions.icon( BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE) );
             Marker marker = mMap.addMarker( markerOptions );
+            marker.setDraggable(true);
             DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
             MapMarker mapMarker = new MapMarker();
             mapMarker.marker = marker;
@@ -772,9 +777,68 @@ public class MapsActivity extends AppCompatActivity
         return false;
     }
 
+    @Override
+    public void onMarkerDragStart(Marker marker) {
+        boolean findTempTarget = false;
+        double latitude = defaultLatitude;
+        double longitude = defaultLongitude;
+        for(int i = 0; i < tempMarkers.size(); ++i) {
+            MapMarker temp = tempMarkers.get(i);
+            if(temp.marker.getId().compareTo(marker.getId()) == 0) {
+                findTempTarget = true;
+                latitude = temp.marker.getPosition().latitude;
+                longitude = temp.marker.getPosition().longitude;
+                temp.remove();
+                tempMarkers.remove(temp);
+                String logdata = String.format("temp lat: %f, long: %f === mark lat: %f, long %f",
+                        latitude, longitude, marker.getPosition().latitude, marker.getPosition().longitude);
+                StringBuilder sb = new StringBuilder();
+                sb.append("onMarkerClick ");
+                sb.append(logdata);
+                Log.d(TAG, sb.toString());
+                break;
+            }
+        }
+        MapMarker findTargetMarker = null;
+        if(false == findTempTarget) {
+            for(Map.Entry<String,MapMarker> entry: visibleMarkers.entrySet()) {
+                MapMarker mapMarker = entry.getValue();
+                if(0 == mapMarker.marker.getId().compareTo(marker.getId())) {
+                    findTargetMarker = mapMarker;
+                    break;
+                }
+            }
+        }
+
+        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
+        if(findTempTarget) {
+            intent.putExtra(MARKER_TYPE, MARKER_TEMP);
+            intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
+            intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
+        }
+        else if(null != findTargetMarker) {
+            intent.putExtra(MARKER_TYPE, MARKER_LOAD);
+            intent.putExtra(MARKER_ID, findTargetMarker.toToPosition.uniqueId);
+            intent.putExtra(LATITUDE_POS, marker.getPosition().latitude);
+            intent.putExtra(LONGITUDE_POS, marker.getPosition().longitude);
+        }
+        else {
+            Toast.makeText(this, "잘못된 마커를 터치하셨습니다.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
+    }
+
+    @Override
+    public void onMarkerDrag(Marker marker) { }
+
+    @Override
+    public void onMarkerDragEnd(Marker marker) { }
 
     @Override
     public boolean onMarkerClick(Marker marker) {
+        if(true) return true;
         boolean findTempTarget = false;
         double latitude = defaultLatitude;
         double longitude = defaultLongitude;
@@ -833,13 +897,13 @@ public class MapsActivity extends AppCompatActivity
         addMarker(latLng, false);
     }
 
-    @Override
-    public void onMapLongClick(LatLng latLng) {
-        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-        intent.putExtra(LATITUDE_POS, latLng.latitude);
-        intent.putExtra(LONGITUDE_POS, latLng.longitude);
-        startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
-    }
+//    @Override
+//    public void onMapLongClick(LatLng latLng) {
+//        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
+//        intent.putExtra(LATITUDE_POS, latLng.latitude);
+//        intent.putExtra(LONGITUDE_POS, latLng.longitude);
+//        startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
+//    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -1002,7 +1066,6 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMapClickListener(this);
         updateRadiusShow(latLng);
     }
-
 
     @Override
     public void onMoveCircleEnd(GeofenceCircle geofenceCircle) {
