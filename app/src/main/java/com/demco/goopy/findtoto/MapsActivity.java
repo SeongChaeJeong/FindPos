@@ -340,8 +340,6 @@ public class MapsActivity extends AppCompatActivity
         mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
 
         enableMyLocation();
-        setUpMyPostionMark();
-        getCurrentGPSInfo();
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnCameraIdleListener(this);
@@ -352,6 +350,8 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMarkerDragListener(this);
         mMap.setOnInfoWindowClickListener(this);
         mMap.setOnInfoWindowLongClickListener(this);
+        setUpMyPostionMark();
+        getCurrentGPSInfo();
 
         if(hasPositionDataFromDB()) {
             new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title_db, R.string.wait_for_map_load_db).execute(true);
@@ -359,9 +359,9 @@ public class MapsActivity extends AppCompatActivity
         else {
             new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title, R.string.wait_for_map_load).execute(false);
         }
-        UiSettings uiSettings = mMap.getUiSettings();
-        uiSettings.setMyLocationButtonEnabled(true);
-        uiSettings.setCompassEnabled(true);
+//        UiSettings uiSettings = mMap.getUiSettings();
+//        uiSettings.setMyLocationButtonEnabled(true);
+//        uiSettings.setCompassEnabled(true);
     }
 
     @Override
