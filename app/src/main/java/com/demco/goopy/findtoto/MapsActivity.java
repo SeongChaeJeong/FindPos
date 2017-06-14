@@ -4,6 +4,8 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -49,6 +51,7 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
@@ -112,6 +115,8 @@ public class MapsActivity extends AppCompatActivity
         GoogleMap.OnCameraIdleListener,
         GoogleMap.OnCameraMoveListener,
         GoogleMap.OnCameraMoveStartedListener,
+        GoogleMap.OnInfoWindowClickListener,
+        GoogleMap.OnInfoWindowLongClickListener,
         CircleManagerListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
 
@@ -345,6 +350,8 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnMarkerClickListener(this);
         mMap.setOnCircleClickListener(this);
         mMap.setOnMarkerDragListener(this);
+        mMap.setOnInfoWindowClickListener(this);
+        mMap.setOnInfoWindowLongClickListener(this);
 
         if(hasPositionDataFromDB()) {
             new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title_db, R.string.wait_for_map_load_db).execute(true);
@@ -352,6 +359,9 @@ public class MapsActivity extends AppCompatActivity
         else {
             new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title, R.string.wait_for_map_load).execute(false);
         }
+        UiSettings uiSettings = mMap.getUiSettings();
+        uiSettings.setMyLocationButtonEnabled(true);
+        uiSettings.setCompassEnabled(true);
     }
 
     @Override
@@ -623,6 +633,15 @@ public class MapsActivity extends AppCompatActivity
                         markerBuilderManager.onMapClick(latLng);
                         updateRadiusShow(latLng);
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+//                        GeomagneticField field = new GeomagneticField(
+//                                (float)currentLantitute,
+//                                (float)currentLongitute,
+//                                (float)latLng.getAltitude(),
+//                                System.currentTimeMillis()
+//                        );
+//
+//                        // getDeclination returns degrees
+//                        mDeclination = field.getDeclination();
                     }
                 }
             };
@@ -668,7 +687,7 @@ public class MapsActivity extends AppCompatActivity
         sb.append(Long.toString(mainCircleRadius));
         sb.append("m");
 
-        tvResizer.setText(sb.toString());
+//        Location.bearingTo();
         mResizeShowMarker = mMap.addMarker(new MarkerOptions()
                 .position(latLng)
                 .icon(BitmapDescriptorFactory.fromBitmap(createDrawableFromView(this, mResizerRootView))));
@@ -850,7 +869,27 @@ public class MapsActivity extends AppCompatActivity
         addMarker(latLng, false);
     }
 
-//    @Override
+    @Override
+    public void onInfoWindowClick(Marker marker) {
+    }
+
+    private void setClipboard(Context context, String text) {
+        if(android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.HONEYCOMB) {
+            android.text.ClipboardManager clipboard = (android.text.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            clipboard.setText(text);
+        } else {
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("Copied Text", text);
+            clipboard.setPrimaryClip(clip);
+        }
+    }
+
+    @Override
+    public void onInfoWindowLongClick(Marker marker) {
+        setClipboard(this, marker.getTitle());
+    }
+
+    //    @Override
 //    public void onMapLongClick(LatLng latLng) {
 //        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
 //        intent.putExtra(LATITUDE_POS, latLng.latitude);
@@ -913,8 +952,17 @@ public class MapsActivity extends AppCompatActivity
         if( latLng == null )
             return;
         String address = AddressConvert.getAddress(this, latLng.latitude, latLng.longitude);
-        Log.e( "addMarker", address );
-        addMarker( 0, latLng, address );
+        String countryLabel = getResources().getString(R.string.contry_label);
+        String targetAddress = null;
+        int index = address.indexOf(countryLabel);
+        if(-1 != index) {
+            targetAddress = address.substring(index + countryLabel.length());
+        }
+        else {
+            targetAddress = address;
+        }
+        Log.e( "addMarker", targetAddress);
+        addMarker( 0, latLng, targetAddress);
     }
 
     public void addMarker( float color, LatLng latLng, String title ) {

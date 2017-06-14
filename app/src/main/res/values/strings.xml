@@ -51,6 +51,7 @@
     <string name="address_label5">주소(번지)2</string>
     <string name="state_label">판매점상태</string>
     <string name="phone_label">전화번호</string>
+    <string name="contry_label">대한민국</string>
 
 
     <string name="search_text">검색</string>
