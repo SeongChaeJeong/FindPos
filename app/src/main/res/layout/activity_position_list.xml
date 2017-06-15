@@ -102,6 +102,7 @@
             android:id="@+id/address_layout"
             android:layout_below="@id/market_title_layout"
             android:layout_marginLeft="15dp"
+            android:weightSum="1"
             android:orientation="horizontal"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content">
@@ -118,13 +119,20 @@
 
             <EditText
                 android:id="@+id/market_address"
-                android:layout_width="350dp"
+                android:layout_width="290dp"
                 android:layout_height="wrap_content"
                 android:layout_centerVertical="true"
                 android:layout_marginLeft="5dp"
                 android:textColor="#000000"
                 android:textSize="@dimen/title_size"
                 android:textStyle="bold"/>
+            <ImageButton
+                android:id="@+id/clear_text_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="2dp"
+                android:layout_gravity="center_vertical"
+                android:src="@drawable/a_btn_lyrics_search_clear"/>
         </LinearLayout>
 
         <LinearLayout

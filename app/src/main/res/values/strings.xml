@@ -30,6 +30,7 @@
     <string name="app_version_label">앱버전</string>
     <string name="app_version">앱버전: %s</string>
     <string name="no_remove_marker">삭제할 마커가 없습니다.</string>
+    <string name="copy_temp_address">임시 마커주소를 복사했습니다.</string>
     <string name="error_crash">앱이 비정상 종료되었습니다. 비정상 종료 원인파악을 위해 메일을 보내주세요~!</string>
 
 

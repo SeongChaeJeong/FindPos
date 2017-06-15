@@ -4,8 +4,6 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -51,7 +49,6 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.UiSettings;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
@@ -109,7 +106,6 @@ public class MapsActivity extends AppCompatActivity
         implements OnMapReadyCallback,
         GoogleMap.OnCircleClickListener,
         GoogleMap.OnMarkerClickListener,
-        GoogleMap.OnMarkerDragListener,
         GoogleMap.OnMyLocationButtonClickListener,
         GoogleMap.OnMapClickListener,
         GoogleMap.OnCameraIdleListener,
@@ -229,9 +225,6 @@ public class MapsActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-//        if(false == runtime_permissions()) {
-//            startGPSService();
-//        }
         mGPSRecevie = true;
 
         final View rootView = getWindow().getDecorView().getRootView();
@@ -340,6 +333,8 @@ public class MapsActivity extends AppCompatActivity
         mMap.animateCamera(CameraUpdateFactory.zoomTo(DEFAULT_ZOOM));
 
         enableMyLocation();
+        setUpMyPostionMark();
+        getCurrentGPSInfo();
         mMap.setOnMyLocationButtonClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnCameraIdleListener(this);
@@ -347,11 +342,8 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnCameraMoveListener(this);
         mMap.setOnMarkerClickListener(this);
         mMap.setOnCircleClickListener(this);
-        mMap.setOnMarkerDragListener(this);
         mMap.setOnInfoWindowClickListener(this);
         mMap.setOnInfoWindowLongClickListener(this);
-        setUpMyPostionMark();
-        getCurrentGPSInfo();
 
         if(hasPositionDataFromDB()) {
             new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title_db, R.string.wait_for_map_load_db).execute(true);
@@ -359,9 +351,6 @@ public class MapsActivity extends AppCompatActivity
         else {
             new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title, R.string.wait_for_map_load).execute(false);
         }
-//        UiSettings uiSettings = mMap.getUiSettings();
-//        uiSettings.setMyLocationButtonEnabled(true);
-//        uiSettings.setCompassEnabled(true);
     }
 
     @Override
@@ -559,7 +548,7 @@ public class MapsActivity extends AppCompatActivity
                                 .title(delPos.name)
                                 .snippet(delPos.biz)
                                 .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(delPos.biz))));
-                        marker.setDraggable(true);
+                        marker.setDraggable(false);
                         DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
 
                         MapMarker mapMarker = new MapMarker();
@@ -592,7 +581,7 @@ public class MapsActivity extends AppCompatActivity
                                         .title(position.name)
                                         .snippet(position.biz)
                                         .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
-                                marker.setDraggable(true);
+                                marker.setDraggable(false);
                                 DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
 
                                 MapMarker mapMarker = new MapMarker();
@@ -633,15 +622,6 @@ public class MapsActivity extends AppCompatActivity
                         markerBuilderManager.onMapClick(latLng);
                         updateRadiusShow(latLng);
                         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-//                        GeomagneticField field = new GeomagneticField(
-//                                (float)currentLantitute,
-//                                (float)currentLongitute,
-//                                (float)latLng.getAltitude(),
-//                                System.currentTimeMillis()
-//                        );
-//
-//                        // getDeclination returns degrees
-//                        mDeclination = field.getDeclination();
                     }
                 }
             };
@@ -686,8 +666,8 @@ public class MapsActivity extends AppCompatActivity
         StringBuilder sb = new StringBuilder();
         sb.append(Long.toString(mainCircleRadius));
         sb.append("m");
+        tvResizer.setText(sb.toString());
 
-//        Location.bearingTo();
         mResizeShowMarker = mMap.addMarker(new MarkerOptions()
                 .position(latLng)
                 .icon(BitmapDescriptorFactory.fromBitmap(createDrawableFromView(this, mResizerRootView))));
@@ -712,7 +692,7 @@ public class MapsActivity extends AppCompatActivity
             markerOptions.title( title );
             markerOptions.icon( BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE) );
             Marker marker = mMap.addMarker( markerOptions );
-            marker.setDraggable(true);
+            marker.setDraggable(false);
             DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
             MapMarker mapMarker = new MapMarker();
             mapMarker.marker = marker;
@@ -799,7 +779,19 @@ public class MapsActivity extends AppCompatActivity
     }
 
     @Override
-    public void onMarkerDragStart(Marker marker) {
+    public boolean onMarkerClick(Marker marker) {
+        marker.showInfoWindow();
+        return true;
+    }
+
+    @Override
+    public void onMapClick(LatLng latLng) {
+        PositionDataSingleton.getInstance().setGPSRecevie(false);
+        addMarker(latLng, false);
+    }
+
+    @Override
+    public void onInfoWindowClick(Marker marker) {
         boolean findTempTarget = false;
         double latitude = defaultLatitude;
         double longitude = defaultLongitude;
@@ -851,28 +843,6 @@ public class MapsActivity extends AppCompatActivity
         startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
     }
 
-    @Override
-    public void onMarkerDrag(Marker marker) { }
-
-    @Override
-    public void onMarkerDragEnd(Marker marker) { }
-
-    @Override
-    public boolean onMarkerClick(Marker marker) {
-        marker.showInfoWindow();
-        return true;
-    }
-
-    @Override
-    public void onMapClick(LatLng latLng) {
-        PositionDataSingleton.getInstance().setGPSRecevie(false);
-        addMarker(latLng, false);
-    }
-
-    @Override
-    public void onInfoWindowClick(Marker marker) {
-    }
-
     private void setClipboard(Context context, String text) {
         if(android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.HONEYCOMB) {
             android.text.ClipboardManager clipboard = (android.text.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
@@ -886,16 +856,9 @@ public class MapsActivity extends AppCompatActivity
 
     @Override
     public void onInfoWindowLongClick(Marker marker) {
+        Toast.makeText(MapsActivity.this, R.string.copy_temp_address, Toast.LENGTH_SHORT).show();
         setClipboard(this, marker.getTitle());
     }
-
-    //    @Override
-//    public void onMapLongClick(LatLng latLng) {
-//        Intent intent = new Intent(MapsActivity.this, PositionMangerActivity.class);
-//        intent.putExtra(LATITUDE_POS, latLng.latitude);
-//        intent.putExtra(LONGITUDE_POS, latLng.longitude);
-//        startActivityForResult(intent, REQUEST_MARKER_LONGCLICK);
-//    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -1005,7 +968,6 @@ public class MapsActivity extends AppCompatActivity
         return false;
     }
 
-
     @Override
     public void onCameraIdle() {
         Log.d(TAG, "onCameraIdle");
@@ -1025,7 +987,6 @@ public class MapsActivity extends AppCompatActivity
             PositionDataSingleton.getInstance().setGPSRecevie(false);
         }
         Log.d(TAG, "onCameraMoveStarted " + String.valueOf(i));
-
     }
 
     @Override
@@ -1081,19 +1042,16 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onResizeCircleStart(GeofenceCircle geofenceCircle) {
         Log.d(TAG, "onResizeCircleStart " + geofenceCircle.toString());
-
     }
 
     @Override
     public void onMinRadius(GeofenceCircle geofenceCircle) {
         Log.d(TAG, "onMinRadius " + geofenceCircle.toString());
-
     }
 
     @Override
     public void onMaxRadius(GeofenceCircle geofenceCircle) {
         Log.d(TAG, "onMaxRadius " + geofenceCircle.toString());
-
     }
 
     public void screenShot(View view) {
@@ -1214,71 +1172,4 @@ public class MapsActivity extends AppCompatActivity
 //        ImageView snapshotHolder = (ImageView) findViewById(R.id.snapshot_holder);
 //        snapshotHolder.setImageDrawable(null);
 //    }
-
-    private void syncFileDataToDB() {
-        totoPositions = PositionDataSingleton.getInstance().getMarkerPositions();
-        Realm realm = Realm.getDefaultInstance();
-        realm.beginTransaction();
-
-        RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
-        toToPositionRealmObjRealmResults.deleteAllFromRealm();
-
-        for(ToToPosition toToPosition : totoPositions) {
-            ToToPositionRealmObj obj = realm.createObject(ToToPositionRealmObj.class);
-            obj.setUniqueId(toToPosition.uniqueId);
-            obj.setBizState(toToPosition.bizState);
-            obj.setTargetName(toToPosition.name);
-            obj.setTargetBiz(toToPosition.biz);
-            obj.setPhone(toToPosition.phone);
-            obj.setAddressData(toToPosition.addressData);
-            obj.setLatitude(toToPosition.latLng.latitude);
-            obj.setLongtitude(toToPosition.latLng.longitude);
-        }
-        realm.commitTransaction();
-    }
-
-
-    private void loadMakerData(ToToPosition position, boolean visible) {
-        if (visible) {
-            if (bizCategoryColorMap.containsKey(position.biz) == false) {
-                bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
-            }
-
-            if (mMap != null) {
-                if (false == visibleMarkers.containsKey(position.uniqueId)) {
-                    Marker marker = mMap.addMarker(new MarkerOptions()
-                            .position(position.latLng)
-                            .title(position.name)
-                            .snippet(position.biz)
-                            .icon(BitmapDescriptorFactory.defaultMarker(bizCategoryColorMap.get(position.biz))));
-                    DraggableCircle circle = new DraggableCircle(marker.getPosition(), DEFAULT_RADIUS_METERS);
-
-                    MapMarker mapMarker = new MapMarker();
-                    mapMarker.toToPosition = position;
-                    mapMarker.marker = marker;
-                    mapMarker.circle = circle;
-
-                    // 지도에 등록
-                    visibleMarkers.put(position.uniqueId, mapMarker);
-                }
-            }
-        }
-        else {
-            if (visibleMarkers.containsKey(position.uniqueId)) {
-                // 지도에서 지우기
-                MapMarker mapMarker = visibleMarkers.get(position.uniqueId);
-                mapMarker.marker.remove();
-                mapMarker.circle.remove();
-                // 등록 목록에서 지우기
-                visibleMarkers.remove(position.uniqueId);
-            }
-        }
-    }
-
-    private void clearAllTempMarker() {
-    }
-
-    private void clearAllDBMarker() {
-    }
-
 }

@@ -10,6 +10,7 @@
         android:layout_height="50dp"
         android:gravity="center"
         android:textColor="@color/black"
+        android:text="200m"
         android:textAppearance="@style/TextAppearance.AppCompat.Headline"
         android:textSize="15dp"/>
 </FrameLayout>

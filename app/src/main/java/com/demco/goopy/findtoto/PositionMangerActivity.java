@@ -23,6 +23,7 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -86,6 +87,7 @@ public class PositionMangerActivity extends AppCompatActivity
     EditText titleText = null;
     EditText bizText = null;
     EditText addressText = null;
+    ImageButton clearButton = null;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -146,6 +148,7 @@ public class PositionMangerActivity extends AppCompatActivity
         titleText = (EditText)findViewById(R.id.edit_title);
         bizText = (EditText)findViewById(R.id.market_category);
         addressText = (EditText)findViewById(R.id.market_address);
+        clearButton = (ImageButton)findViewById(R.id.clear_text_button);
 
         s = (Spinner) findViewById(R.id.biz_category_spinner);
         spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, bizCategoryList);
@@ -166,7 +169,16 @@ public class PositionMangerActivity extends AppCompatActivity
 
         initEditText();
         if(focusLongitude != defaultLongitude && focusLatitude != defaultLatitude) {
-            String targetAddress = AddressConvert.getAddress(this, focusLatitude, focusLongitude);
+            String address = AddressConvert.getAddress(this, focusLatitude, focusLongitude);
+            String countryLabel = getResources().getString(R.string.contry_label);
+            String targetAddress = null;
+            int index = address.indexOf(countryLabel);
+            if(-1 != index) {
+                targetAddress = address.substring(index + countryLabel.length());
+            }
+            else {
+                targetAddress = address;
+            }
             addressText.setText(targetAddress);
         }
 
@@ -200,6 +212,7 @@ public class PositionMangerActivity extends AppCompatActivity
         modifyBtn.setOnClickListener(this);
         delBtn.setOnClickListener(this);
         focusMapBtn.setOnClickListener(this);
+        clearButton.setOnClickListener(this);
 
         mRecyclerView = (RecyclerView) findViewById(R.id.position_recycler_view);
         mRecyclerView.setHasFixedSize(true);
@@ -467,6 +480,10 @@ public class PositionMangerActivity extends AppCompatActivity
                 Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
                 setResult(RESULT_ITEM_SELECT, intent);
                 finish();
+                break;
+            case R.id.clear_text_button:
+                initEditText();
+                break;
         }
     }
 
@@ -502,19 +519,6 @@ public class PositionMangerActivity extends AppCompatActivity
             case android.R.id.home:
                 onBackPressed();
                 return true;
-//            case R.id.action_list_save:
-//                List<ToToPosition> toToPositionList = PositionDataSingleton.getInstance().getMarkerPositions();
-//                if(toToPositionList.isEmpty()) {
-//                    Toast.makeText(this, R.string.list_empty, Toast.LENGTH_SHORT).show();
-//                    return true;
-//                }
-//                if(FileManager.saveExcelFile(this, "address.xls")) {
-//                    Toast.makeText(this, R.string.save_ok, Toast.LENGTH_SHORT).show();
-//                }
-//                else {
-//                    Toast.makeText(this, R.string.save_fail, Toast.LENGTH_SHORT).show();
-//                }
-//                return true;
             case R.id.app_version:
                 String version;
                 try {
