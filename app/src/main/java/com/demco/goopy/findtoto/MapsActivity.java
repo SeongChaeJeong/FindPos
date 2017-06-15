@@ -12,6 +12,10 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -84,6 +88,7 @@ import io.realm.Realm;
 import io.realm.RealmConfiguration;
 import io.realm.RealmResults;
 
+import static com.demco.goopy.findtoto.Data.ToToPosition.ERROR_CHANNEL;
 import static com.demco.goopy.findtoto.Data.ToToPosition.MODIFY;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
 import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
@@ -145,6 +150,7 @@ public class MapsActivity extends AppCompatActivity
     public static final int REQUEST_MARKER_LONGCLICK = 1;
     public static final int RESULT_ITEM_SELECT = 2;
     public static final int REQUEST_SEARCH = 3;
+    public static final int RESULT_TEMP_POSITION = 4;
     public static final double defaultLatitude = 37.566660;
     public static final double defaultLongitude = 126.978418;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
@@ -164,6 +170,12 @@ public class MapsActivity extends AppCompatActivity
     private Bitmap mbitmap;
     private boolean dataLoadComplete = false;
     private Handler handler = new Handler();
+
+    SensorManager sm;
+    SensorEventListener accL;
+    SensorEventListener oriL;
+    Sensor oriSensor;
+    Sensor accSensor;
 
     private float[] arrayPinColors = new float[] {
             BitmapDescriptorFactory.HUE_AZURE,
@@ -311,7 +323,44 @@ public class MapsActivity extends AppCompatActivity
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        sm = (SensorManager)getSystemService(SENSOR_SERVICE);    // SensorManager 인스턴스를 가져옴
+        oriSensor = sm.getDefaultSensor(Sensor.TYPE_ORIENTATION);    // 방향 센서
+        accSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);    // 가속도 센서
+        oriL = new oriListener();        // 방향 센서 리스너 인스턴스
+        accL = new accListener();       // 가속도 센서 리스너 인스턴스
     }
+    private class accListener implements SensorEventListener {
+        public void onSensorChanged(SensorEvent event) {  // 가속도 센서 값이 바뀔때마다 호출됨
+//            ax.setText(Float.toString(event.values[0]));
+//            ay.setText(Float.toString(event.values[1]));
+//            az.setText(Float.toString(event.values[2]));
+            Log.i("SENSOR", "Acceleration changed.");
+            Log.i("SENSOR", "  Acceleration X: " + event.values[0]
+                    + ", Acceleration Y: " + event.values[1]
+                    + ", Acceleration Z: " + event.values[2]);
+        }
+
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
+    }
+
+    private class oriListener implements SensorEventListener {
+        public void onSensorChanged(SensorEvent event) {  // 방향 센서 값이 바뀔때마다 호출됨
+//            ox.setText(Float.toString(event.values[0]));
+//            oy.setText(Float.toString(event.values[1]));
+//            oz.setText(Float.toString(event.values[2]));
+            Log.i("SENSOR", "Orientation changed.");
+            Log.i("SENSOR", "  Orientation X: " + event.values[0]
+                    + ", Orientation Y: " + event.values[1]
+                    + ", Orientation Z: " + event.values[2]);
+        }
+
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+        }
+    }
+
 
     @Override
     protected void onStart() {
@@ -449,6 +498,7 @@ public class MapsActivity extends AppCompatActivity
                         targetLatLng = AddressConvert.getLatLng(MapsActivity.this, toToPosition.addressData);
                         if (targetLatLng == null) {
                             targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                            toToPosition.phone = ERROR_CHANNEL;
                         }
                     } catch (TimeoutException e) {
                         targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
@@ -610,6 +660,8 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
+        sm.registerListener(accL, accSensor, SensorManager.SENSOR_DELAY_NORMAL);    // 가속도 센서 리스너 오브젝트를 등록
+        sm.registerListener(oriL, oriSensor, SensorManager.SENSOR_DELAY_NORMAL);    // 방향 센서 리스너 오브젝트를 등록
         if(broadcastReceiver == null){
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
@@ -870,6 +922,16 @@ public class MapsActivity extends AppCompatActivity
             case REQUEST_SEARCH:
                 break;
             case REQUEST_MARKER_LONGCLICK:
+                break;
+            case RESULT_TEMP_POSITION:
+                Bundle bundleTemp = data.getExtras();
+                if(null != bundleTemp) {
+                    double focusLatitude = bundleTemp.getDouble(LATITUDE_POS, defaultLatitude);
+                    double focusLongitude = bundleTemp.getDouble(LONGITUDE_POS, defaultLongitude);
+                    LatLng targetLatLng = new LatLng(focusLatitude, focusLongitude);
+                    addMarker(targetLatLng, false);
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(targetLatLng, DEFAULT_ZOOM));
+                }
                 break;
             case RESULT_ITEM_SELECT:
                 Bundle bundle = data.getExtras();

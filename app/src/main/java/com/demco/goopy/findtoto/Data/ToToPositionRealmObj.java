@@ -19,7 +19,7 @@ public class ToToPositionRealmObj extends RealmObject {
     private double latitude;
     private double longtitude;
     private String addressData;
-    private String phone;
+    private String phone; // 잘못된 주소체크 용으로 사용, 이미 있는 필드를 사용하기 위해서...
     private String bizState;
 
     public String getUniqueId() {

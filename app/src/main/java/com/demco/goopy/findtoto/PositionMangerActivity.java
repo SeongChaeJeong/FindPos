@@ -8,6 +8,7 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.graphics.ColorUtils;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -47,9 +48,11 @@ import java.util.concurrent.TimeoutException;
 import io.realm.Realm;
 
 import static com.demco.goopy.findtoto.Data.ToToPosition.DELETE;
+import static com.demco.goopy.findtoto.Data.ToToPosition.ERROR_CHANNEL;
 import static com.demco.goopy.findtoto.Data.ToToPosition.MODIFY;
 import static com.demco.goopy.findtoto.Data.ToToPosition.NONE;
 import static com.demco.goopy.findtoto.MapsActivity.RESULT_ITEM_SELECT;
+import static com.demco.goopy.findtoto.MapsActivity.RESULT_TEMP_POSITION;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
 import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
 
@@ -395,7 +398,6 @@ public class PositionMangerActivity extends AppCompatActivity
                                     obj.setBizState(selectedItem.bizState);
                                     obj.setTargetName(selectedItem.name);
                                     obj.setTargetBiz(selectedItem.biz);
-                                    obj.setPhone(selectedItem.phone);
                                     obj.setAddressData(selectedItem.addressData);
                                     LatLng targetLatLng = null;
                                     try {
@@ -407,7 +409,12 @@ public class PositionMangerActivity extends AppCompatActivity
                                     }
                                     if(targetLatLng == null) {
                                         targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                                        selectedItem.phone = ERROR_CHANNEL;
                                     }
+                                    else {
+                                        selectedItem.phone = "";
+                                    }
+                                    obj.setPhone(selectedItem.phone);
                                     selectedItem.latLng = targetLatLng;
                                     obj.setLatitude(targetLatLng.latitude);
                                     obj.setLongtitude(targetLatLng.longitude);
@@ -470,6 +477,28 @@ public class PositionMangerActivity extends AppCompatActivity
                 break;
             case R.id.focus_map_btn:
                 if(selectedItem == null) {
+                    if(false == addressText.getText().toString().isEmpty()) {
+                        LatLng targetLatLng = null;
+                        try {
+                            targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, addressText.getText().toString());
+                        }
+                        catch(TimeoutException e) {
+                            Toast.makeText(PositionMangerActivity.this, R.string.map_address_timeout, Toast.LENGTH_LONG).show();
+                            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                        }
+                        if(targetLatLng == null) {
+                            Toast.makeText(this, R.string.invalid_address_convert, Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        Intent intent = new Intent();
+                        intent.putExtra(LATITUDE_POS, targetLatLng.latitude);
+                        intent.putExtra(LONGITUDE_POS, targetLatLng.longitude);
+                        Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
+                        setResult(RESULT_TEMP_POSITION, intent);
+                        finish();
+                        return;
+                    }
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
                     break;
                 }
@@ -551,24 +580,35 @@ public class PositionMangerActivity extends AppCompatActivity
         @Override
         public void onBindViewHolder(CustomViewHolder customViewHolder, int i) {
             final ToToPosition toToPosition = feedItemList.get(i);
+            float[] hueColor = new float[]{120f, 1f, 1f};
+            int bizColor = ColorUtils.HSLToColor(hueColor);
+            int textColor = getResources().getColor(R.color.textNomalColor);
+            if(ERROR_CHANNEL.compareTo(toToPosition.phone) == 0) {
+                textColor = getResources().getColor(R.color.colorAccent);
+            }
+            customViewHolder.marketColor.setBackgroundColor(bizColor);
             if(TextUtils.isEmpty(toToPosition.name) == false) {
+                customViewHolder.marketTitle.setTextColor(textColor);
                 customViewHolder.marketTitle.setText(toToPosition.name);
             }
             else {
                 customViewHolder.marketTitle.setText("");
             }
             if(TextUtils.isEmpty(toToPosition.biz) == false) {
+                customViewHolder.marketCategory.setTextColor(textColor);
                 customViewHolder.marketCategory.setText(toToPosition.biz);
             }
             else {
                 customViewHolder.marketCategory.setText("");
             }
             if(TextUtils.isEmpty(toToPosition.addressData) == false) {
+                customViewHolder.marketAddress.setTextColor(textColor);
                 customViewHolder.marketAddress.setText(toToPosition.addressData);
             }
             else {
                 customViewHolder.marketAddress.setText("");
             }
+
 
             customViewHolder.selectItemBtn.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -596,9 +636,11 @@ public class PositionMangerActivity extends AppCompatActivity
             protected TextView marketCategory;
             protected TextView marketAddress;
             protected Button selectItemBtn;
+            protected View marketColor;
 
             public CustomViewHolder(View view) {
                 super(view);
+                this.marketColor = view.findViewById(R.id.market_color);
                 this.marketTitle = (TextView) view.findViewById(R.id.market_title);
                 this.marketCategory = (TextView) view.findViewById(R.id.market_category);
                 this.marketAddress = (TextView) view.findViewById(R.id.market_address);

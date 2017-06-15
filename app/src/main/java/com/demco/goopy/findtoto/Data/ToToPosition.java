@@ -16,6 +16,8 @@ public class ToToPosition {
     public static int MODIFY = 2;
     public static int DELETE = 3;
 
+    public static String ERROR_CHANNEL = "error_channel";
+
     public String uniqueId;
     public String biz;
     public String name;

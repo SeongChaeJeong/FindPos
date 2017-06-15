@@ -5,6 +5,7 @@
     <color name="colorAccent">#FF4081</color>
     <color name="white">#ffffff</color>
     <color name="black">#000000</color>
+    <color name="textNomalColor">#000000</color>
     <color name="toolbarColor">#FDD835</color>
     <color name="dialogBtnColor">#388E3C</color>
 </resources>

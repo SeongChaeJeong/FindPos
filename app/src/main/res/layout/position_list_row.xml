@@ -98,6 +98,11 @@
         </LinearLayout>
     </LinearLayout>
 
+    <View
+        android:id="@+id/market_color"
+        android:layout_width="20dp"
+        android:layout_height="match_parent"
+        />
     <Button
         android:id="@+id/select_item_btn"
         android:layout_toRightOf="@id/item_layout"
