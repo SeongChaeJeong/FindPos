@@ -2,6 +2,7 @@ package com.demco.goopy.findtoto;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.ColorDrawable;
@@ -109,6 +110,13 @@ public class PositionMangerActivity extends AppCompatActivity
         }
 
         setContentView(R.layout.activity_position_list);
+        searchText = (EditText)findViewById(R.id.search_text);
+        titleText = (EditText)findViewById(R.id.edit_title);
+        bizText = (EditText)findViewById(R.id.market_category);
+        addressText = (EditText)findViewById(R.id.market_address);
+        clearButton = (ImageButton)findViewById(R.id.clear_text_button);
+        s = (Spinner) findViewById(R.id.biz_category_spinner);
+
         Intent dataIntent = getIntent();
         if(null != dataIntent) {
             Bundle bundle = dataIntent.getExtras();
@@ -147,13 +155,7 @@ public class PositionMangerActivity extends AppCompatActivity
         getSupportActionBar().setBackgroundDrawable(new ColorDrawable(getResources().getColor(R.color.toolbarColor)));
 
         selectedItem = null;
-        searchText = (EditText)findViewById(R.id.search_text);
-        titleText = (EditText)findViewById(R.id.edit_title);
-        bizText = (EditText)findViewById(R.id.market_category);
-        addressText = (EditText)findViewById(R.id.market_address);
-        clearButton = (ImageButton)findViewById(R.id.clear_text_button);
 
-        s = (Spinner) findViewById(R.id.biz_category_spinner);
         spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, bizCategoryList);
         spinnerAdapter.notifyDataSetChanged();
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
@@ -170,7 +172,7 @@ public class PositionMangerActivity extends AppCompatActivity
             }
         });
 
-        initEditText();
+
         if(focusLongitude != defaultLongitude && focusLatitude != defaultLatitude) {
             String address = AddressConvert.getAddress(this, focusLatitude, focusLongitude);
             String countryLabel = getResources().getString(R.string.contry_label);
@@ -183,6 +185,9 @@ public class PositionMangerActivity extends AppCompatActivity
                 targetAddress = address;
             }
             addressText.setText(targetAddress);
+        }
+        else {
+            loadEditText();
         }
 
 
@@ -230,6 +235,7 @@ public class PositionMangerActivity extends AppCompatActivity
     @Override
     public void onBackPressed() {
         super.onBackPressed();
+        saveEditText();
         setResult(RESULT_OK, null);
         finish();
     }
@@ -346,7 +352,6 @@ public class PositionMangerActivity extends AppCompatActivity
                                 dataModifySet.add(newPosition);
                                 mAdapter.notifyDataSetChanged();
                                 Toast.makeText(PositionMangerActivity.this, R.string.add_ok, Toast.LENGTH_SHORT).show();
-                                initEditText();
                             }
                         })
                         .onNegative(new MaterialDialog.SingleButtonCallback() {
@@ -389,7 +394,6 @@ public class PositionMangerActivity extends AppCompatActivity
                                 selectedItem.name = titleText.getText().toString();
                                 selectedItem.biz = bizText.getText().toString();
                                 Toast.makeText(PositionMangerActivity.this, R.string.modify_ok, Toast.LENGTH_SHORT).show();
-                                initEditText();
                                 Realm realm = Realm.getDefaultInstance();
                                 realm.beginTransaction();
                                 ToToPositionRealmObj obj = realm.where(ToToPositionRealmObj.class).equalTo("uniqueId", selectedItem.uniqueId).findFirst();
@@ -496,6 +500,7 @@ public class PositionMangerActivity extends AppCompatActivity
                         intent.putExtra(LONGITUDE_POS, targetLatLng.longitude);
                         Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
                         setResult(RESULT_TEMP_POSITION, intent);
+                        saveEditText();
                         finish();
                         return;
                     }
@@ -508,6 +513,7 @@ public class PositionMangerActivity extends AppCompatActivity
                 intent.putExtra(LONGITUDE_POS, selectedItem.latLng.longitude);
                 Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
                 setResult(RESULT_ITEM_SELECT, intent);
+                saveEditText();
                 finish();
                 break;
             case R.id.clear_text_button:
@@ -532,6 +538,36 @@ public class PositionMangerActivity extends AppCompatActivity
         bizText.setText("");
         s.setSelection(0);
         addressText.setText("");
+    }
+
+    private void loadEditText() {
+        SharedPreferences prefs = getSharedPreferences("EditSavePref", MODE_PRIVATE);
+        String textTitle = prefs.getString(KEY_TITLE_PREF, "");
+        String textBiz = prefs.getString(KEY_BIZ_PREF, "");
+        String textAddress = prefs.getString(KEY_ADDRESS_PREF, "");
+        int category = prefs.getInt(KEY_CATEGORY_PREF, 0);
+        selectItemUniqeId = prefs.getString(KEY_SELECT_ID_PREF, "");
+        titleText.setText(textTitle);
+        bizText.setText(textBiz);
+        s.setSelection(category);
+        addressText.setText(textAddress);
+    }
+
+    private static String KEY_TITLE_PREF = "key_title_pref";
+    private static String KEY_BIZ_PREF = "key_biz_pref";
+    private static String KEY_ADDRESS_PREF = "key_address_pref";
+    private static String KEY_CATEGORY_PREF = "key_category_pref";
+    private static String KEY_SELECT_ID_PREF = "key_select_id_pref";
+
+    private void saveEditText() {
+        SharedPreferences prefs = getSharedPreferences("EditSavePref", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString(KEY_TITLE_PREF, titleText.getText().toString());
+        editor.putString(KEY_BIZ_PREF, bizText.getText().toString());
+        editor.putString(KEY_ADDRESS_PREF, addressText.getText().toString());
+        editor.putString(KEY_SELECT_ID_PREF, selectItemUniqeId == null ? "" : selectItemUniqeId);
+        editor.putInt(KEY_CATEGORY_PREF, s.getSelectedItemPosition());
+        editor.commit();
     }
 
     @Override
@@ -586,7 +622,7 @@ public class PositionMangerActivity extends AppCompatActivity
             if(ERROR_CHANNEL.compareTo(toToPosition.phone) == 0) {
                 textColor = getResources().getColor(R.color.colorAccent);
             }
-            customViewHolder.marketColor.setBackgroundColor(bizColor);
+//            customViewHolder.marketColor.setBackgroundColor(bizColor);
             if(TextUtils.isEmpty(toToPosition.name) == false) {
                 customViewHolder.marketTitle.setTextColor(textColor);
                 customViewHolder.marketTitle.setText(toToPosition.name);
@@ -640,7 +676,7 @@ public class PositionMangerActivity extends AppCompatActivity
 
             public CustomViewHolder(View view) {
                 super(view);
-                this.marketColor = view.findViewById(R.id.market_color);
+//                this.marketColor = view.findViewById(R.id.market_color);
                 this.marketTitle = (TextView) view.findViewById(R.id.market_title);
                 this.marketCategory = (TextView) view.findViewById(R.id.market_category);
                 this.marketAddress = (TextView) view.findViewById(R.id.market_address);
