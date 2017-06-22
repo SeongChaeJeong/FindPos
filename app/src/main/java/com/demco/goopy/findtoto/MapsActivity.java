@@ -284,6 +284,11 @@ public class MapsActivity extends AppCompatActivity
         mCloseImageView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                if(mainCircleRadius != (long)DEFAULT_RADIUS_METERS) {
+                    mainCircleRadius = (long)DEFAULT_RADIUS_METERS;
+                    resetMainCircle(mainCircleRadius);
+                    Toast.makeText(MapsActivity.this, R.string.init_main_circle_radius, Toast.LENGTH_SHORT).show();
+                }
                 if(tempMarkers.isEmpty()) {
                     Toast.makeText(MapsActivity.this, R.string.no_remove_marker, Toast.LENGTH_SHORT).show();
                     return;
@@ -1072,12 +1077,33 @@ public class MapsActivity extends AppCompatActivity
     public void onResizeCircleEnd(GeofenceCircle geofenceCircle) {
         Log.d(TAG, "onResizeCircleEnd " + geofenceCircle.toString());
         mainCircleRadius = (long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()));
+        resetMainCircle(mainCircleRadius);
+//        markerBuilderManager.clearCircles();
+//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
+//                .map(mMap)
+//                .enabled(true)
+//                .minRadius(DEFAULT_MIN_RADIUS_METERS)
+//                .radius(mainCircleRadius)
+//                .strokeColor(Color.RED)
+//                .fillColor(Color.TRANSPARENT)
+//                .listener(this)
+//                .build();
+//
+//        currentLantitute = gps.getLatitude();
+//        currentLongitute = gps.getLongitude();
+//        LatLng latLng = new LatLng(currentLantitute, currentLongitute);
+//        markerBuilderManager.onMapClick(latLng);
+//        mMap.setOnMapClickListener(this);
+//        updateRadiusShow(latLng);
+    }
+
+    private void resetMainCircle(long circleRadius) {
         markerBuilderManager.clearCircles();
         markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
                 .map(mMap)
                 .enabled(true)
                 .minRadius(DEFAULT_MIN_RADIUS_METERS)
-                .radius(mainCircleRadius)
+                .radius(circleRadius)
                 .strokeColor(Color.RED)
                 .fillColor(Color.TRANSPARENT)
                 .listener(this)
@@ -1089,6 +1115,7 @@ public class MapsActivity extends AppCompatActivity
         markerBuilderManager.onMapClick(latLng);
         mMap.setOnMapClickListener(this);
         updateRadiusShow(latLng);
+
     }
 
     @Override
