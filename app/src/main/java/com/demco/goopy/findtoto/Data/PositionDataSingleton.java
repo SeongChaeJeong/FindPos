@@ -1,7 +1,9 @@
 package com.demco.goopy.findtoto.Data;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by goopy on 2017-03-25.
@@ -11,6 +13,7 @@ public class PositionDataSingleton {
     private static PositionDataSingleton mInstance = null;
 
     private boolean GPSRecevie = true;
+    private Map<String, Integer> bizCategoryColorIndexs = new HashMap<>();
     private List<ToToPosition> markerPositions = null;
     private List<ToToPosition> markerModifyPositions = null;
 
@@ -37,6 +40,10 @@ public class PositionDataSingleton {
 
     public List<ToToPosition> getMarkerModifyPositions() {
         return markerModifyPositions;
+    }
+
+    public Map<String, Integer> getBizCategoryColorIndexs() {
+        return bizCategoryColorIndexs;
     }
 
     public boolean isGPSRecevie() {

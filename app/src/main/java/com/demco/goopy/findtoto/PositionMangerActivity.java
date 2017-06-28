@@ -9,7 +9,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.graphics.ColorUtils;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -43,6 +42,7 @@ import com.google.android.gms.maps.model.LatLng;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
@@ -600,10 +600,12 @@ public class PositionMangerActivity extends AppCompatActivity
     public class PositionAdapter extends RecyclerView.Adapter<PositionAdapter.CustomViewHolder> {
         private List<ToToPosition> feedItemList;
         private Context mContext;
+        private Map<String, Integer> bizCategoryColorIndexs;
 
         public PositionAdapter(Context context, List<ToToPosition> feedItemList) {
             this.feedItemList = feedItemList;
             this.mContext = context;
+            this.bizCategoryColorIndexs = PositionDataSingleton.getInstance().getBizCategoryColorIndexs();
         }
 
         @Override
@@ -613,16 +615,34 @@ public class PositionMangerActivity extends AppCompatActivity
             return viewHolder;
         }
 
+        private int[] arrayPinColors = new int[] {
+            R.color.DodgerBlue,
+                R.color.DarkSlateBlue,
+                R.color.Cyan,
+                R.color.Lime,
+                R.color.Magenta,
+                R.color.MediumVioletRed,
+                R.color.DarkViolet,
+                R.color.Yellow
+        };
+
         @Override
         public void onBindViewHolder(CustomViewHolder customViewHolder, int i) {
             final ToToPosition toToPosition = feedItemList.get(i);
-            float[] hueColor = new float[]{120f, 1f, 1f};
-            int bizColor = ColorUtils.HSLToColor(hueColor);
+            int colorIndex = -1;
+            if (bizCategoryColorIndexs.containsKey(toToPosition.biz)) {
+                colorIndex = bizCategoryColorIndexs.get(toToPosition.biz);
+            }
             int textColor = getResources().getColor(R.color.textNomalColor);
             if(ERROR_CHANNEL.compareTo(toToPosition.phone) == 0) {
                 textColor = getResources().getColor(R.color.colorAccent);
             }
-//            customViewHolder.marketColor.setBackgroundColor(bizColor);
+            if(colorIndex == -1) {
+                customViewHolder.selectItemBtn.setBackgroundResource(R.color.Red);
+            }
+            else {
+                customViewHolder.selectItemBtn.setBackgroundResource(arrayPinColors[colorIndex]);
+            }
             if(TextUtils.isEmpty(toToPosition.name) == false) {
                 customViewHolder.marketTitle.setTextColor(textColor);
                 customViewHolder.marketTitle.setText(toToPosition.name);

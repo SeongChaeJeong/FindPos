@@ -221,7 +221,7 @@ public class MapsActivity extends AppCompatActivity
                     .radius(radiusMeters)
                     .strokeColor(Color.BLUE)
                     .strokeWidth(5)
-                    .clickable(true));
+                    .clickable(false));
         }
 
         public void remove() {
@@ -329,42 +329,43 @@ public class MapsActivity extends AppCompatActivity
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        sm = (SensorManager)getSystemService(SENSOR_SERVICE);    // SensorManager 인스턴스를 가져옴
-        oriSensor = sm.getDefaultSensor(Sensor.TYPE_ORIENTATION);    // 방향 센서
-        accSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);    // 가속도 센서
-        oriL = new oriListener();        // 방향 센서 리스너 인스턴스
-        accL = new accListener();       // 가속도 센서 리스너 인스턴스
-    }
-    private class accListener implements SensorEventListener {
-        public void onSensorChanged(SensorEvent event) {  // 가속도 센서 값이 바뀔때마다 호출됨
-//            ax.setText(Float.toString(event.values[0]));
-//            ay.setText(Float.toString(event.values[1]));
-//            az.setText(Float.toString(event.values[2]));
-            Log.i("SENSOR", "Acceleration changed.");
-            Log.i("SENSOR", "  Acceleration X: " + event.values[0]
-                    + ", Acceleration Y: " + event.values[1]
-                    + ", Acceleration Z: " + event.values[2]);
-        }
-
-        public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        }
+//        sm = (SensorManager)getSystemService(SENSOR_SERVICE);    // SensorManager 인스턴스를 가져옴
+//        oriSensor = sm.getDefaultSensor(Sensor.TYPE_ORIENTATION);    // 방향 센서
+//        accSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);    // 가속도 센서
+//        oriL = new oriListener();        // 방향 센서 리스너 인스턴스
+//        accL = new accListener();       // 가속도 센서 리스너 인스턴스
     }
 
-    private class oriListener implements SensorEventListener {
-        public void onSensorChanged(SensorEvent event) {  // 방향 센서 값이 바뀔때마다 호출됨
-//            ox.setText(Float.toString(event.values[0]));
-//            oy.setText(Float.toString(event.values[1]));
-//            oz.setText(Float.toString(event.values[2]));
-            Log.i("SENSOR", "Orientation changed.");
-            Log.i("SENSOR", "  Orientation X: " + event.values[0]
-                    + ", Orientation Y: " + event.values[1]
-                    + ", Orientation Z: " + event.values[2]);
-        }
-
-        public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
-        }
-    }
+//    private class accListener implements SensorEventListener {
+//        public void onSensorChanged(SensorEvent event) {  // 가속도 센서 값이 바뀔때마다 호출됨
+////            ax.setText(Float.toString(event.values[0]));
+////            ay.setText(Float.toString(event.values[1]));
+////            az.setText(Float.toString(event.values[2]));
+//            Log.i("SENSOR", "Acceleration changed.");
+//            Log.i("SENSOR", "  Acceleration X: " + event.values[0]
+//                    + ", Acceleration Y: " + event.values[1]
+//                    + ", Acceleration Z: " + event.values[2]);
+//        }
+//
+//        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+//        }
+//    }
+//
+//    private class oriListener implements SensorEventListener {
+//        public void onSensorChanged(SensorEvent event) {  // 방향 센서 값이 바뀔때마다 호출됨
+////            ox.setText(Float.toString(event.values[0]));
+////            oy.setText(Float.toString(event.values[1]));
+////            oz.setText(Float.toString(event.values[2]));
+//            Log.i("SENSOR", "Orientation changed.");
+//            Log.i("SENSOR", "  Orientation X: " + event.values[0]
+//                    + ", Orientation Y: " + event.values[1]
+//                    + ", Orientation Z: " + event.values[2]);
+//        }
+//
+//        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+//
+//        }
+//    }
 
 
     @Override
@@ -555,6 +556,14 @@ public class MapsActivity extends AppCompatActivity
                 }
             }
 
+            final Map<String, Integer> bizCategoryColorIndexs = PositionDataSingleton.getInstance().getBizCategoryColorIndexs();
+            for(final ToToPosition position: positionList) {
+                if (bizCategoryColorMap.containsKey(position.biz) == false) {
+                    bizCategoryColorIndexs.put(position.biz, markerColorIndex % arrayPinColors.length);
+                    bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
+                }
+            }
+
             realm.commitTransaction();
             realm.close();
             return null;
@@ -581,6 +590,7 @@ public class MapsActivity extends AppCompatActivity
     public void placeMarkers(final Handler handler) {
         final List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
         final List<ToToPosition> modifyPositionList = PositionDataSingleton.getInstance().getMarkerModifyPositions();
+        final Map<String, Integer> bizCategoryColorIndexs = PositionDataSingleton.getInstance().getBizCategoryColorIndexs();
         new Thread() {
             @Override
             public void run(){
@@ -596,6 +606,7 @@ public class MapsActivity extends AppCompatActivity
 
                     if(delPos.state == MODIFY) {
                         if (bizCategoryColorMap.containsKey(delPos.biz) == false) {
+                            bizCategoryColorIndexs.put(delPos.biz, markerColorIndex % arrayPinColors.length);
                             bizCategoryColorMap.put(delPos.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
                         }
                         Marker marker = mMap.addMarker(new MarkerOptions()
@@ -627,6 +638,7 @@ public class MapsActivity extends AppCompatActivity
                                 return;
                             }
                             if (bizCategoryColorMap.containsKey(position.biz) == false) {
+                                bizCategoryColorIndexs.put(position.biz, markerColorIndex % arrayPinColors.length);
                                 bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
                             }
 
@@ -665,8 +677,8 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-        sm.registerListener(accL, accSensor, SensorManager.SENSOR_DELAY_NORMAL);    // 가속도 센서 리스너 오브젝트를 등록
-        sm.registerListener(oriL, oriSensor, SensorManager.SENSOR_DELAY_NORMAL);    // 방향 센서 리스너 오브젝트를 등록
+//        sm.registerListener(accL, accSensor, SensorManager.SENSOR_DELAY_NORMAL);    // 가속도 센서 리스너 오브젝트를 등록
+//        sm.registerListener(oriL, oriSensor, SensorManager.SENSOR_DELAY_NORMAL);    // 방향 센서 리스너 오브젝트를 등록
         if(broadcastReceiver == null){
             broadcastReceiver = new BroadcastReceiver() {
                 @Override
@@ -1078,23 +1090,6 @@ public class MapsActivity extends AppCompatActivity
         Log.d(TAG, "onResizeCircleEnd " + geofenceCircle.toString());
         mainCircleRadius = (long)Double.parseDouble(String.format("%.0f", geofenceCircle.getRadius()));
         resetMainCircle(mainCircleRadius);
-//        markerBuilderManager.clearCircles();
-//        markerBuilderManager = new MarkerBuilderManagerV2.Builder(this)
-//                .map(mMap)
-//                .enabled(true)
-//                .minRadius(DEFAULT_MIN_RADIUS_METERS)
-//                .radius(mainCircleRadius)
-//                .strokeColor(Color.RED)
-//                .fillColor(Color.TRANSPARENT)
-//                .listener(this)
-//                .build();
-//
-//        currentLantitute = gps.getLatitude();
-//        currentLongitute = gps.getLongitude();
-//        LatLng latLng = new LatLng(currentLantitute, currentLongitute);
-//        markerBuilderManager.onMapClick(latLng);
-//        mMap.setOnMapClickListener(this);
-//        updateRadiusShow(latLng);
     }
 
     private void resetMainCircle(long circleRadius) {
