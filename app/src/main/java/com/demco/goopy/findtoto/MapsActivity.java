@@ -13,7 +13,6 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.hardware.Sensor;
-import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
@@ -70,10 +69,11 @@ import org.apache.poi.ss.usermodel.Row;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.text.SimpleDateFormat;
+import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -154,6 +154,7 @@ public class MapsActivity extends AppCompatActivity
     public static final double defaultLatitude = 37.566660;
     public static final double defaultLongitude = 126.978418;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
+    private static final int WRITE_STORAGE_PERMISSION_REQUEST_CODE = 2;
 
     int markerColorIndex = 0;
     private double currentLantitute = defaultLatitude;
@@ -317,10 +318,12 @@ public class MapsActivity extends AppCompatActivity
             @Override
             public void onClick(View v) {
                 try {
-                    store(getScreenShot(rootView), "asdf.png");
+                    if(enableWriteStorage()) {
+                        takeSnapshot();
+                    }
                 }
                 catch (Exception e) {
-                    Toast.makeText(MapsActivity.this, R.string.command_failed, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MapsActivity.this, R.string.screen_shot_failed, Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -328,52 +331,19 @@ public class MapsActivity extends AppCompatActivity
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-
-//        sm = (SensorManager)getSystemService(SENSOR_SERVICE);    // SensorManager 인스턴스를 가져옴
-//        oriSensor = sm.getDefaultSensor(Sensor.TYPE_ORIENTATION);    // 방향 센서
-//        accSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);    // 가속도 센서
-//        oriL = new oriListener();        // 방향 센서 리스너 인스턴스
-//        accL = new accListener();       // 가속도 센서 리스너 인스턴스
     }
-
-//    private class accListener implements SensorEventListener {
-//        public void onSensorChanged(SensorEvent event) {  // 가속도 센서 값이 바뀔때마다 호출됨
-////            ax.setText(Float.toString(event.values[0]));
-////            ay.setText(Float.toString(event.values[1]));
-////            az.setText(Float.toString(event.values[2]));
-//            Log.i("SENSOR", "Acceleration changed.");
-//            Log.i("SENSOR", "  Acceleration X: " + event.values[0]
-//                    + ", Acceleration Y: " + event.values[1]
-//                    + ", Acceleration Z: " + event.values[2]);
-//        }
-//
-//        public void onAccuracyChanged(Sensor sensor, int accuracy) {
-//        }
-//    }
-//
-//    private class oriListener implements SensorEventListener {
-//        public void onSensorChanged(SensorEvent event) {  // 방향 센서 값이 바뀔때마다 호출됨
-////            ox.setText(Float.toString(event.values[0]));
-////            oy.setText(Float.toString(event.values[1]));
-////            oz.setText(Float.toString(event.values[2]));
-//            Log.i("SENSOR", "Orientation changed.");
-//            Log.i("SENSOR", "  Orientation X: " + event.values[0]
-//                    + ", Orientation Y: " + event.values[1]
-//                    + ", Orientation Z: " + event.values[2]);
-//        }
-//
-//        public void onAccuracyChanged(Sensor sensor, int accuracy) {
-//
-//        }
-//    }
-
 
     @Override
     protected void onStart() {
         super.onStart();
-        if(false == runtime_permissions()) {
-            startGPSService();
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if(runtime_permissions()) {
+            }
         }
+        startGPSService();
+//        else {
+//            startGPSService();
+//        }
     }
 
     @Override
@@ -826,6 +796,16 @@ public class MapsActivity extends AppCompatActivity
         return BitmapDescriptorFactory.defaultMarker(hsv[0]);
     }
 
+    private boolean enableWriteStorage() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            PermissionUtils.requestPermission(this, WRITE_STORAGE_PERMISSION_REQUEST_CODE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE, true);
+            return false;
+        }
+        return true;
+    }
+
     private void enableMyLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -963,18 +943,6 @@ public class MapsActivity extends AppCompatActivity
         }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if(requestCode == 100){
-            if( grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED){
-                startGPSService();
-            }else {
-                runtime_permissions();
-            }
-        }
-    }
 
     @Override
     protected void onResumeFragments() {
@@ -1039,12 +1007,43 @@ public class MapsActivity extends AppCompatActivity
 
     private boolean runtime_permissions() {
         if(Build.VERSION.SDK_INT >= 23 &&
-                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
-            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},100);
+            ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+            && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+            && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.WRITE_EXTERNAL_STORAGE},100);
             return true;
         }
         return false;
+    }
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if(requestCode == LOCATION_PERMISSION_REQUEST_CODE)  {
+            if(grantResults.length > 0) {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    startGPSService();
+                }
+            }
+        }
+        else if(requestCode == WRITE_STORAGE_PERMISSION_REQUEST_CODE)  {
+            if(grantResults.length > 0) {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    takeSnapshot();
+                }
+            }
+        }
+        else {
+            if(grantResults.length > 0){
+                if( grantResults[0] == PackageManager.PERMISSION_GRANTED
+                        && grantResults[1] == PackageManager.PERMISSION_GRANTED
+                        && grantResults[2] == PackageManager.PERMISSION_GRANTED ){
+                    startGPSService();
+                }else {
+                    runtime_permissions();
+                }
+            }
+        }
     }
 
     @Override
@@ -1138,11 +1137,79 @@ public class MapsActivity extends AppCompatActivity
         Log.d(TAG, "onMaxRadius " + geofenceCircle.toString());
     }
 
-    public void screenShot(View view) {
-        mbitmap = getBitmapOFRootView(mScreenSaveImageView);
-//        imageView.setImageBitmap(mbitmap);
-        createImage(mbitmap);
+    //=========================
+
+    private void takeSnapshot() {
+        if (mMap == null) {
+            return;
+        }
+
+        final GoogleMap.SnapshotReadyCallback callback = new GoogleMap.SnapshotReadyCallback() {
+            @Override
+            public void onSnapshotReady(Bitmap snapshot) {
+                takeScreenshot2(snapshot);
+            }
+        };
+        mMap.snapshot(callback);
     }
+
+    /**
+     * Called when the clear button is clicked.
+     */
+
+    /* Checks if external storage is available for read and write */
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if ( Environment.MEDIA_MOUNTED.equals( state ) ) {
+            return true;
+        }
+        return false;
+    }
+
+    /* Checks if external storage is available to at least read */
+    public boolean isExternalStorageReadable() {
+        String state = Environment.getExternalStorageState();
+        if ( Environment.MEDIA_MOUNTED.equals( state ) ||
+                Environment.MEDIA_MOUNTED_READ_ONLY.equals( state ) ) {
+            return true;
+        }
+        return false;
+    }
+
+    private void takeScreenshot2(Bitmap snapshot) {
+        File appDirectory = new File( Environment.getExternalStorageDirectory().getAbsolutePath()  + "/FindToToSceenShot" );
+//        File appDirectory = new File(getExternalFilesDir(null) + "/FindToto" );
+        // create app folder
+        if ( false == appDirectory.exists() ) {
+            if(appDirectory.mkdirs() == false) {
+                Toast.makeText(this, getString(R.string.screen_shot_dir_failed), Toast.LENGTH_LONG).show();
+                return;
+            }
+        }
+
+        Date now = new Date();
+        DateFormat format2 = DateFormat.getDateInstance(DateFormat.LONG);
+        android.text.format.DateFormat.format("yyyy-MM-dd_hh:mm:ss", now);
+
+        try {
+            //String mPath = Environment.getExternalStorageDirectory().toString() + "/" + now + ".jpg";
+            String mPath = appDirectory + "/" + format2.format(now) + ".jpg";
+            File imageFile = new File(mPath);
+
+            FileOutputStream outputStream = new FileOutputStream(imageFile);
+            int quality = 100;
+            snapshot.compress(Bitmap.CompressFormat.JPEG, quality, outputStream);
+            outputStream.flush();
+            outputStream.close();
+        } catch (Throwable e) {
+            // Several error may come out with file handling or DOM
+            e.printStackTrace();
+            Toast.makeText(this, getString(R.string.screen_shot_failed), Toast.LENGTH_LONG).show();
+            return;
+        }
+        Toast.makeText(this, getString(R.string.screen_shot_sucessed), Toast.LENGTH_LONG).show();
+    }
+    //=========================
 
     public Bitmap getBitmapOFRootView(View v) {
         View rootview = v.getRootView();
@@ -1169,11 +1236,8 @@ public class MapsActivity extends AppCompatActivity
     }
 
     public void screenshot (View view) throws Exception{
-
         view.setDrawingCacheEnabled(true);
-
         Bitmap scrreenshot = view.getDrawingCache();
-
         String filename = "screenshot.png";
 
         try{
@@ -1187,23 +1251,6 @@ public class MapsActivity extends AppCompatActivity
         }
 
         view.setDrawingCacheEnabled(false);
-    }
-
-    private File createImageFile() throws IOException {
-        // Create an image file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_";
-        File storageDir = Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(
-                imageFileName,  // prefix
-                ".jpg",         // suffix
-                storageDir      // directory
-        );
-
-        // Save a file: path for use with ACTION_VIEW intents
-//        mCurrentPhotoPath = "file:" + image.getAbsolutePath();
-        return image;
     }
 
 
@@ -1231,29 +1278,24 @@ public class MapsActivity extends AppCompatActivity
         return bitmap;
     }
 
-//    private void takeSnapshot() {
-//        if (mMap == null) {
-//            return;
-//        }
-//
-//        final ImageView snapshotHolder = (ImageView) findViewById(R.id.snapshot_holder);
-//
-//        final GoogleMap.SnapshotReadyCallback callback = new GoogleMap.SnapshotReadyCallback() {
-//            @Override
-//            public void onSnapshotReady(Bitmap snapshot) {
-//                // Callback is called from the main thread, so we can modify the ImageView safely.
-//                snapshotHolder.setImageBitmap(snapshot);
-//            }
-//        };
-//
-//        mMap.snapshot(callback);
-//    }
-//
-//    /**
-//     * Called when the clear button is clicked.
-//     */
-//    public void onClearScreenshot(View view) {
-//        ImageView snapshotHolder = (ImageView) findViewById(R.id.snapshot_holder);
-//        snapshotHolder.setImageDrawable(null);
-//    }
+    public Bitmap takeScreenshot() {
+        View rootView = findViewById(android.R.id.content).getRootView();
+        rootView.setDrawingCacheEnabled(true);
+        return rootView.getDrawingCache();
+    }
+
+    public void saveBitmap(Bitmap bitmap) {
+        final File imagePath = new File(Environment.getExternalStorageDirectory() + "/screenshot.png");
+        FileOutputStream fos;
+        try {
+            fos = new FileOutputStream(imagePath);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            fos.flush();
+            fos.close();
+        } catch (FileNotFoundException e) {
+            Log.e("GREC", e.getMessage(), e);
+        } catch (IOException e) {
+            Log.e("GREC", e.getMessage(), e);
+        }
+    }
 }

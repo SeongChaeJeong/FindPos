@@ -41,7 +41,7 @@
     <ImageView
         android:layout_below="@id/gps_off"
         android:id="@+id/screen_save"
-        android:visibility="gone"
+        android:visibility="visible"
         android:src="@drawable/ic_add_a_photo"
         android:layout_alignParentRight="true"
         android:layout_marginRight="10dp"

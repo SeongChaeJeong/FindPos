@@ -9,6 +9,9 @@
     <string name="close_content">앱을 종료하시겠습니까?</string>
     <string name="agree">예</string>
     <string name="disagree">아니오</string>
+    <string name="screen_shot_dir_failed">캡처 폴더생성을 실패하였습니다.</string>
+    <string name="screen_shot_failed">화면캡처를 실패하였습니다.</string>
+    <string name="screen_shot_sucessed">화면캡처를 성공하였습니다.</string>
     <string name="gps_off">GPS 설정이 활성화되지 않았습니다.</string>
     <string name="check_file">\n파일을 확인해보세요.</string>
     <string name="empty_address_result">주소가 없습니다.</string>

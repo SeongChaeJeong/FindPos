@@ -1,8 +1,10 @@
 package com.demco.goopy.findtoto.System;
 
+import android.Manifest;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -10,6 +12,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
@@ -61,10 +64,11 @@ public class GPS_Service extends Service {
                 }
             };
 
-        locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
-        //noinspection MissingPermission
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,3000,0,listener);
-
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            locationManager = (LocationManager) getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
+            //noinspection MissingPermission
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000, 0, listener);
+        }
     }
 
     @Override
