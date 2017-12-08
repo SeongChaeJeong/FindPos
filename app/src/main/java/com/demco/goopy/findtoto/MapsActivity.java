@@ -67,12 +67,8 @@ import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -1151,7 +1147,7 @@ public class MapsActivity extends AppCompatActivity
         final GoogleMap.SnapshotReadyCallback callback = new GoogleMap.SnapshotReadyCallback() {
             @Override
             public void onSnapshotReady(Bitmap snapshot) {
-                takeScreenshot2(snapshot);
+                takeScreenshot(snapshot);
             }
         };
         mMap.snapshot(callback);
@@ -1170,17 +1166,7 @@ public class MapsActivity extends AppCompatActivity
         return false;
     }
 
-    /* Checks if external storage is available to at least read */
-    public boolean isExternalStorageReadable() {
-        String state = Environment.getExternalStorageState();
-        if ( Environment.MEDIA_MOUNTED.equals( state ) ||
-                Environment.MEDIA_MOUNTED_READ_ONLY.equals( state ) ) {
-            return true;
-        }
-        return false;
-    }
-
-    private void takeScreenshot2(Bitmap snapshot) {
+    private void takeScreenshot(Bitmap snapshot) {
         File appDirectory = new File( Environment.getExternalStorageDirectory().getAbsolutePath()  + "/FindToToSceenShot" );
         // create app folder
         if ( false == appDirectory.exists() ) {
