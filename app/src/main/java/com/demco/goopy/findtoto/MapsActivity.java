@@ -74,6 +74,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -321,6 +322,15 @@ public class MapsActivity extends AppCompatActivity
                     if(enableWriteStorage()) {
                         takeSnapshot();
                     }
+                    else {
+                        int permissionAudio = ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                        if(permissionAudio == PackageManager.PERMISSION_DENIED) {
+                            ActivityCompat.requestPermissions(MapsActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, WRITE_STORAGE_PERMISSION_REQUEST_CODE);
+                        } else {
+                            takeSnapshot();
+                        }
+
+                    }
                 }
                 catch (Exception e) {
                     Toast.makeText(MapsActivity.this, R.string.screen_shot_failed, Toast.LENGTH_SHORT).show();
@@ -341,9 +351,6 @@ public class MapsActivity extends AppCompatActivity
             }
         }
         startGPSService();
-//        else {
-//            startGPSService();
-//        }
     }
 
     @Override
@@ -797,10 +804,7 @@ public class MapsActivity extends AppCompatActivity
     }
 
     private boolean enableWriteStorage() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-            PermissionUtils.requestPermission(this, WRITE_STORAGE_PERMISSION_REQUEST_CODE,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE, true);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
             return false;
         }
         return true;
@@ -1178,7 +1182,6 @@ public class MapsActivity extends AppCompatActivity
 
     private void takeScreenshot2(Bitmap snapshot) {
         File appDirectory = new File( Environment.getExternalStorageDirectory().getAbsolutePath()  + "/FindToToSceenShot" );
-//        File appDirectory = new File(getExternalFilesDir(null) + "/FindToto" );
         // create app folder
         if ( false == appDirectory.exists() ) {
             if(appDirectory.mkdirs() == false) {
@@ -1189,11 +1192,11 @@ public class MapsActivity extends AppCompatActivity
 
         Date now = new Date();
         DateFormat format2 = DateFormat.getDateInstance(DateFormat.LONG);
-        android.text.format.DateFormat.format("yyyy-MM-dd_hh:mm:ss", now);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+        String getTime = sdf.format(now);
 
         try {
-            //String mPath = Environment.getExternalStorageDirectory().toString() + "/" + now + ".jpg";
-            String mPath = appDirectory + "/" + format2.format(now) + ".jpg";
+            String mPath = appDirectory + "/" + getTime + ".jpg";
             File imageFile = new File(mPath);
 
             FileOutputStream outputStream = new FileOutputStream(imageFile);
@@ -1210,92 +1213,4 @@ public class MapsActivity extends AppCompatActivity
         Toast.makeText(this, getString(R.string.screen_shot_sucessed), Toast.LENGTH_LONG).show();
     }
     //=========================
-
-    public Bitmap getBitmapOFRootView(View v) {
-        View rootview = v.getRootView();
-        rootview.setDrawingCacheEnabled(true);
-        Bitmap bitmap1 = rootview.getDrawingCache();
-        return bitmap1;
-    }
-
-    public void createImage(Bitmap bmp) {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        bmp.compress(Bitmap.CompressFormat.JPEG, 40, bytes);
-        String filename = "screenshot2.png";
-        File file = new File(this.getExternalFilesDir(null), filename);
-//        File file = new File(Environment.getExternalStorageDirectory() +
-//                "/capturedscreenandroid.jpg");
-        try {
-            file.createNewFile();
-            FileOutputStream outputStream = new FileOutputStream(file);
-            outputStream.write(bytes.toByteArray());
-            outputStream.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void screenshot (View view) throws Exception{
-        view.setDrawingCacheEnabled(true);
-        Bitmap scrreenshot = view.getDrawingCache();
-        String filename = "screenshot.png";
-
-        try{
-            File f = new File(this.getExternalFilesDir(null), filename);
-            f.createNewFile();
-            OutputStream outStream = new FileOutputStream(f);
-            scrreenshot.compress(Bitmap.CompressFormat.PNG, 100, outStream);
-            outStream.close();
-        }catch( IOException e){
-            e.printStackTrace();
-        }
-
-        view.setDrawingCacheEnabled(false);
-    }
-
-
-    public static void store(Bitmap bm, String fileName){
-        final String dirPath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/Screenshots";
-        File dir = new File(dirPath);
-        if(!dir.exists())
-            dir.mkdirs();
-        File file = new File(dirPath, fileName);
-        try {
-            FileOutputStream fOut = new FileOutputStream(file);
-            bm.compress(Bitmap.CompressFormat.PNG, 85, fOut);
-            fOut.flush();
-            fOut.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static Bitmap getScreenShot(View view) {
-        View screenView = view.getRootView();
-        screenView.setDrawingCacheEnabled(true);
-        Bitmap bitmap = Bitmap.createBitmap(screenView.getDrawingCache());
-        screenView.setDrawingCacheEnabled(false);
-        return bitmap;
-    }
-
-    public Bitmap takeScreenshot() {
-        View rootView = findViewById(android.R.id.content).getRootView();
-        rootView.setDrawingCacheEnabled(true);
-        return rootView.getDrawingCache();
-    }
-
-    public void saveBitmap(Bitmap bitmap) {
-        final File imagePath = new File(Environment.getExternalStorageDirectory() + "/screenshot.png");
-        FileOutputStream fos;
-        try {
-            fos = new FileOutputStream(imagePath);
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-            fos.flush();
-            fos.close();
-        } catch (FileNotFoundException e) {
-            Log.e("GREC", e.getMessage(), e);
-        } catch (IOException e) {
-            Log.e("GREC", e.getMessage(), e);
-        }
-    }
 }
