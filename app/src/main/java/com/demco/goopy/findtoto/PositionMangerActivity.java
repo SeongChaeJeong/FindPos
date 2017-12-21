@@ -119,7 +119,11 @@ public class PositionMangerActivity extends AppCompatActivity
         addressText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-
+//                String address = addressText.getText().toString();
+//                if(address != null && address.compareTo(s.toString()) != 0) {
+//                    selectedItem = null;
+//                    selectItemUniqeId = "";
+//                }
             }
 
             @Override
@@ -129,7 +133,7 @@ public class PositionMangerActivity extends AppCompatActivity
 
             @Override
             public void afterTextChanged(Editable s) {
-                selectedItem = null;
+
             }
         });
         clearButton = (ImageButton)findViewById(R.id.clear_text_button);
@@ -477,7 +481,6 @@ public class PositionMangerActivity extends AppCompatActivity
                                     Toast.makeText(PositionMangerActivity.this, R.string.empty_id_select_result, Toast.LENGTH_SHORT).show();
                                     return;
                                 }
-                                initEditText();
                                 Realm realm = Realm.getDefaultInstance();
                                 realm.beginTransaction();
                                 ToToPositionRealmObj obj = realm.where(ToToPositionRealmObj.class).equalTo("uniqueId", selectedItem.uniqueId).findFirst();
@@ -490,6 +493,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                 dataModifySet.add(selectedItem);
                                 dataset.remove(selectedItem);
                                 mAdapter.notifyDataSetChanged();
+                                initEditText();
                                 Toast.makeText(PositionMangerActivity.this, R.string.delete_ok, Toast.LENGTH_SHORT).show();
                             }
 
