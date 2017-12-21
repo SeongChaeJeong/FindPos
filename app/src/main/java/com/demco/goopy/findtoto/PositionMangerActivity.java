@@ -13,7 +13,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -114,6 +116,22 @@ public class PositionMangerActivity extends AppCompatActivity
         titleText = (EditText)findViewById(R.id.edit_title);
         bizText = (EditText)findViewById(R.id.market_category);
         addressText = (EditText)findViewById(R.id.market_address);
+        addressText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                selectedItem = null;
+            }
+        });
         clearButton = (ImageButton)findViewById(R.id.clear_text_button);
         s = (Spinner) findViewById(R.id.biz_category_spinner);
 
@@ -439,9 +457,9 @@ public class PositionMangerActivity extends AppCompatActivity
 
                 break;
             case R.id.delete_btn:
-                if(selectedItem == null) {
+                if(selectedItem == null || selectedItem.uniqueId == null) {
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
-                    break;
+                    return;
                 }
 
                 new MaterialDialog.Builder(PositionMangerActivity.this)
@@ -455,6 +473,10 @@ public class PositionMangerActivity extends AppCompatActivity
                         .onPositive(new MaterialDialog.SingleButtonCallback() {
                             @Override
                             public void onClick(@NonNull MaterialDialog dialog, @NonNull DialogAction which) {
+                                if(null == selectedItem.uniqueId) {
+                                    Toast.makeText(PositionMangerActivity.this, R.string.empty_id_select_result, Toast.LENGTH_SHORT).show();
+                                    return;
+                                }
                                 initEditText();
                                 Realm realm = Realm.getDefaultInstance();
                                 realm.beginTransaction();
@@ -505,10 +527,11 @@ public class PositionMangerActivity extends AppCompatActivity
                         return;
                     }
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
-                    break;
+                    return;
                 }
 
                 Intent intent = new Intent();
+                intent.putExtra(MARKER_ID, selectedItem.uniqueId);
                 intent.putExtra(LATITUDE_POS, selectedItem.latLng.latitude);
                 intent.putExtra(LONGITUDE_POS, selectedItem.latLng.longitude);
                 Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
@@ -634,7 +657,7 @@ public class PositionMangerActivity extends AppCompatActivity
                 colorIndex = bizCategoryColorIndexs.get(toToPosition.biz);
             }
             int textColor = getResources().getColor(R.color.textNomalColor);
-            if(ERROR_CHANNEL.compareTo(toToPosition.phone) == 0) {
+            if(toToPosition.phone != null && ERROR_CHANNEL.compareTo(toToPosition.phone) == 0) {
                 textColor = getResources().getColor(R.color.colorAccent);
             }
             if(colorIndex == -1) {

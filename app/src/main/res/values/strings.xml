@@ -19,6 +19,7 @@
     <string name="empty_search_request">검색어가 없습니다.</string>
     <string name="empty_search_result">검색결과가 없습니다.</string>
     <string name="empty_select_result">항목을 찾을 수 없습니다.</string>
+    <string name="empty_id_select_result">항목ID을 찾을 수 없습니다.</string>
     <string name="invalid_address_convert">주소위치를 찾을 수 없습니다.</string>
     <string name="add_ok">추가되었습니다.</string>
     <string name="modify_ok">수정되었습니다.</string>

@@ -933,8 +933,13 @@ public class MapsActivity extends AppCompatActivity
             case RESULT_ITEM_SELECT:
                 Bundle bundle = data.getExtras();
                 if(null != bundle) {
+                    String focusId = bundle.getString(MARKER_ID, "");
                     double focusLatitude = bundle.getDouble(LATITUDE_POS, defaultLatitude);
                     double focusLongitude = bundle.getDouble(LONGITUDE_POS, defaultLongitude);
+                    if (visibleMarkers.containsKey(focusId)) {
+                        MapMarker mapMarker = visibleMarkers.get(focusId);
+                        mapMarker.marker.showInfoWindow();
+                    }
                     mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(focusLatitude, focusLongitude), DEFAULT_ZOOM));
                 }
                 break;
