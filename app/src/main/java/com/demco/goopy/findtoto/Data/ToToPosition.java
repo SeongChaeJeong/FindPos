@@ -26,12 +26,6 @@ public class ToToPosition {
     public int state = NONE;
     public String bizState;
     public List<String> addressList = new ArrayList<>(5);
-//    public String[] rawData = new String[LAST_INDEX];
     public String addressData = null;
     public LatLng latLng;
-//    public ToToPosition() {
-//        for(int i = 0; i < LAST_INDEX; ++i) {
-//            rawData[i] = "";
-//        }
-//    }
 }

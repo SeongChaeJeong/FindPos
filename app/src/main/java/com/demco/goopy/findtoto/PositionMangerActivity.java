@@ -95,6 +95,27 @@ public class PositionMangerActivity extends AppCompatActivity
     EditText addressText = null;
     ImageButton clearButton = null;
 
+    TextWatcher addressWatcher = new TextWatcher() {
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+        }
+
+        @Override
+        public void afterTextChanged(Editable s) {
+//            String address = addressText.getText().toString();
+//            if(address != null && address.compareTo(s.toString()) != 0) {
+//                selectedItem = null;
+//                selectItemUniqeId = "";
+//            }
+        }
+    };
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -116,26 +137,6 @@ public class PositionMangerActivity extends AppCompatActivity
         titleText = (EditText)findViewById(R.id.edit_title);
         bizText = (EditText)findViewById(R.id.market_category);
         addressText = (EditText)findViewById(R.id.market_address);
-        addressText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-//                String address = addressText.getText().toString();
-//                if(address != null && address.compareTo(s.toString()) != 0) {
-//                    selectedItem = null;
-//                    selectItemUniqeId = "";
-//                }
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-
-            }
-        });
         clearButton = (ImageButton)findViewById(R.id.clear_text_button);
         s = (Spinner) findViewById(R.id.biz_category_spinner);
 
@@ -415,6 +416,10 @@ public class PositionMangerActivity extends AppCompatActivity
                                 selectedItem.addressData = TextUtils.join(" ", selectedItem.addressList);
                                 selectedItem.name = titleText.getText().toString();
                                 selectedItem.biz = bizText.getText().toString();
+                                String bizCategory = bizText.getText().toString();
+                                if(bizCategoryList.indexOf(bizCategory) == -1) {
+                                    bizCategoryList.add(bizCategory);
+                                }
                                 Toast.makeText(PositionMangerActivity.this, R.string.modify_ok, Toast.LENGTH_SHORT).show();
                                 Realm realm = Realm.getDefaultInstance();
                                 realm.beginTransaction();
@@ -508,30 +513,20 @@ public class PositionMangerActivity extends AppCompatActivity
             case R.id.focus_map_btn:
                 if(selectedItem == null) {
                     if(false == addressText.getText().toString().isEmpty()) {
-                        LatLng targetLatLng = null;
-                        try {
-                            targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, addressText.getText().toString());
-                        }
-                        catch(TimeoutException e) {
-                            Toast.makeText(PositionMangerActivity.this, R.string.map_address_timeout, Toast.LENGTH_LONG).show();
-                            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
-                        }
-                        if(targetLatLng == null) {
-                            Toast.makeText(this, R.string.invalid_address_convert, Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        Intent intent = new Intent();
-                        intent.putExtra(LATITUDE_POS, targetLatLng.latitude);
-                        intent.putExtra(LONGITUDE_POS, targetLatLng.longitude);
-                        Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
-                        setResult(RESULT_TEMP_POSITION, intent);
-                        saveEditText();
-                        finish();
+                        focusTempAdress();
                         return;
                     }
                     Toast.makeText(this, R.string.empty_select_result, Toast.LENGTH_SHORT).show();
                     return;
+                }
+                else {
+                    String address = addressText.getText().toString();
+                    if(selectedItem.addressData != null && address != null && address.compareTo(selectedItem.addressData) != 0) {
+                        selectedItem = null;
+                        selectItemUniqeId = "";
+                        focusTempAdress();
+                        return;
+                    }
                 }
 
                 Intent intent = new Intent();
@@ -547,6 +542,29 @@ public class PositionMangerActivity extends AppCompatActivity
                 initEditText();
                 break;
         }
+    }
+
+    private void focusTempAdress() {
+        LatLng targetLatLng = null;
+        try {
+            targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, addressText.getText().toString());
+        }
+        catch(TimeoutException e) {
+            Toast.makeText(PositionMangerActivity.this, R.string.map_address_timeout, Toast.LENGTH_LONG).show();
+            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+        }
+        if(targetLatLng == null) {
+            Toast.makeText(this, R.string.invalid_address_convert, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Intent intent = new Intent();
+        intent.putExtra(LATITUDE_POS, targetLatLng.latitude);
+        intent.putExtra(LONGITUDE_POS, targetLatLng.longitude);
+        Toast.makeText(PositionMangerActivity.this, R.string.focus_ok, Toast.LENGTH_SHORT).show();
+        setResult(RESULT_TEMP_POSITION, intent);
+        saveEditText();
+        finish();
     }
 
     private void syncDBtoFileData() {
@@ -699,7 +717,9 @@ public class PositionMangerActivity extends AppCompatActivity
                     selectItemUniqeId = toToPosition.uniqueId;
                     titleText.setText(toToPosition.name);
                     bizText.setText(toToPosition.biz);
+
                     addressText.setText(toToPosition.addressData);
+
                     int categoryIndex = bizCategoryList.indexOf(toToPosition.biz);
                     if(-1 != categoryIndex) {
                         s.setSelection(categoryIndex);
