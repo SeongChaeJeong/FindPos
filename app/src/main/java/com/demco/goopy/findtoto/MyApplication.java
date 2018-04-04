@@ -24,7 +24,8 @@ public class MyApplication extends MultiDexApplication {
     public void onCreate() {
         super.onCreate();
         ACRA.init(this);
-        RealmConfiguration config = new RealmConfiguration.Builder(this).build();
+        Realm.init(getApplicationContext());
+        RealmConfiguration config = new RealmConfiguration.Builder().build();
         Realm.setDefaultConfiguration(config);
     }
 }

@@ -629,6 +629,10 @@ public class PositionMangerActivity extends AppCompatActivity
             case android.R.id.home:
                 onBackPressed();
                 return true;
+            case R.id.refresh_map_datafile:
+//                new MapsActivity.AddLoadMarkerTask(getApplicationContext(), R.string.wait_for_map_reload_title, R.string.wait_for_map_reload).execute(true);
+
+                break;
             case R.id.app_version:
                 String version;
                 try {
@@ -640,6 +644,7 @@ public class PositionMangerActivity extends AppCompatActivity
             default:
                 return super.onOptionsItemSelected(item);
         }
+        return false;
     }
 
     public class PositionAdapter extends RecyclerView.Adapter<PositionAdapter.CustomViewHolder> {

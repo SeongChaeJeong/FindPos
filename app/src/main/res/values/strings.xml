@@ -33,6 +33,7 @@
     <string name="gps_receive_off">GPS 수신을 차단합니다.</string>
     <string name="gps_receive_on">GPS 수신을 받습니다.</string>
     <string name="app_version_label">앱버전</string>
+    <string name="refresh_map_datafile">새로고침</string>
     <string name="app_version">앱버전: %s</string>
     <string name="no_remove_marker">삭제할 마커가 없습니다.</string>
     <string name="init_main_circle_radius">메인서클 범위를 200m로 초기화합니다.</string>
@@ -211,6 +212,8 @@
     <string name="vr_more_padded_button">More</string>
     <string name="vr_soh_button">SOH</string>
     <string name="vr_sfo_button">SFO</string>
+    <string name="wait_for_map_reload_title">파일데이터 다시로드 중</string>
+    <string name="wait_for_map_reload">"address.xls" 파일데이터를 지도에 다시로드하는 중입니다...</string>
     <string name="wait_for_map_load_title">파일데이터 로드 중</string>
     <string name="wait_for_map_load_title_db">DB데이터 로드 중</string>
     <string name="wait_for_map_load">"address.xls" 파일데이터를 지도에 로드하는 중입니다...</string>

@@ -9,6 +9,10 @@
         <!--android:title="@string/save_position_list_to_file"/>-->
 
     <item
+        android:id="@+id/refresh_map_datafile"
+        android:title="@string/refresh_map_datafile"/>
+
+    <item
         android:id="@+id/app_version"
         android:title="@string/app_version_label"/>
 

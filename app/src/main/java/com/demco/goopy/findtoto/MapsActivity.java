@@ -16,11 +16,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
-import android.os.AsyncTask;
-import android.os.Build;
-import android.os.Bundle;
-import android.os.Environment;
-import android.os.Handler;
+import android.os.*;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -35,7 +31,6 @@ import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.aconcepcion.geofencemarkerbuilder.CircleManagerListener;
 import com.aconcepcion.geofencemarkerbuilder.GeofenceCircle;
 import com.aconcepcion.geofencemarkerbuilder.MarkerBuilderManagerV2;
@@ -52,15 +47,10 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptor;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.Circle;
-import com.google.android.gms.maps.model.CircleOptions;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
-import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
-
+import com.google.android.gms.maps.model.*;
+import io.realm.Realm;
+import io.realm.RealmConfiguration;
+import io.realm.RealmResults;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
@@ -71,36 +61,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
-
-import io.realm.Realm;
-import io.realm.RealmConfiguration;
-import io.realm.RealmResults;
 
 import static com.demco.goopy.findtoto.Data.ToToPosition.ERROR_CHANNEL;
 import static com.demco.goopy.findtoto.Data.ToToPosition.MODIFY;
-import static com.demco.goopy.findtoto.PositionMangerActivity.LATITUDE_POS;
-import static com.demco.goopy.findtoto.PositionMangerActivity.LONGITUDE_POS;
-import static com.demco.goopy.findtoto.PositionMangerActivity.MARKER_ID;
-import static com.demco.goopy.findtoto.PositionMangerActivity.MARKER_LOAD;
-import static com.demco.goopy.findtoto.PositionMangerActivity.MARKER_TEMP;
-import static com.demco.goopy.findtoto.PositionMangerActivity.MARKER_TYPE;
-import static com.demco.goopy.findtoto.Utils.FileManager.ADDRESS1;
-import static com.demco.goopy.findtoto.Utils.FileManager.ADDRESS5;
-import static com.demco.goopy.findtoto.Utils.FileManager.BIZSTATE;
-import static com.demco.goopy.findtoto.Utils.FileManager.BUSINESS;
-import static com.demco.goopy.findtoto.Utils.FileManager.CHANNEL;
-import static com.demco.goopy.findtoto.Utils.FileManager.LAST_INDEX;
-import static com.demco.goopy.findtoto.Utils.FileManager.NAME;
-import static com.demco.goopy.findtoto.Utils.FileManager.PHONE;
+import static com.demco.goopy.findtoto.PositionMangerActivity.*;
+import static com.demco.goopy.findtoto.Utils.FileManager.*;
 
 // https://github.com/googlemaps/android-samples 참고
 
@@ -239,7 +206,8 @@ public class MapsActivity extends AppCompatActivity
 
         final View rootView = getWindow().getDecorView().getRootView();
 
-        RealmConfiguration realmConfiguration = new RealmConfiguration.Builder(this)
+        Realm.init(getApplicationContext());
+        RealmConfiguration realmConfiguration = new RealmConfiguration.Builder()
                 .name(Realm.DEFAULT_REALM_NAME)
                 .deleteRealmIfMigrationNeeded()
                 .build();
@@ -386,13 +354,16 @@ public class MapsActivity extends AppCompatActivity
         super.onPause();
     }
 
-    private class AddLoadMarkerTask extends AsyncTask<Boolean, String, String> {
+    public class AddLoadMarkerTask extends AsyncTask<Boolean, String, String> {
+
+//        private WeakReference<MapsActivity> activityWeakReference;
         ProgressDialog progressDialog;
         Context mContext;
         int mTitle;
         int mMessage;
 
         public AddLoadMarkerTask(Context context, int title, int message) {
+//            activityWeakReference = new WeakReference<>(context);
             mContext = context;
             mTitle = title;
             mMessage = message;
