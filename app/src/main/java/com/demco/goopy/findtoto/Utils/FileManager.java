@@ -223,7 +223,16 @@ public class FileManager {
         }
     }
 
-    public static boolean readExcelFile(Context context, String filename) {
+    public static boolean containsMSICode(final List<ToToPosition> list, final int code){
+        for(ToToPosition item : list) {
+            if(item.msiCode == code) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean readExcelFile(Context context, String filename, boolean positionClear) {
 
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly())
         {
@@ -256,8 +265,9 @@ public class FileManager {
                 HSSFRow myRow = (HSSFRow) rowIter.next();
             }
 
-
-            positionList.clear();
+            if(positionClear) {
+                positionList.clear();
+            }
             boolean timeoutError = false;
             while(rowIter.hasNext()){
                 String[] rawData = new String[LAST_INDEX];
@@ -287,6 +297,13 @@ public class FileManager {
                 toToPosition.bizState = rawData[BIZSTATE];
                 toToPosition.phone = rawData[PHONE];
                 toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
+
+                if(containsMSICode(positionList, toToPosition.msiCode)) {
+                    Log.d("READ EXEL", "이미 존재: " + toToPosition.msiCode);
+                    continue;
+                }
+                Log.e("READ EXEL", "                   ================= 신규: " + toToPosition.msiCode);
+
                 LatLng targetLatLng = null;
                 try {
                     if(timeoutError) {

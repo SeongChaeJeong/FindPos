@@ -23,7 +23,7 @@ public class LoadData_Service extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        FileManager.readExcelFile(this,"address.xls");
+        FileManager.readExcelFile(this,"address.xls", true);
         Intent i = new Intent("postion_data_update");
         sendBroadcast(i);
         return Service.START_NOT_STICKY;

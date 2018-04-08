@@ -432,6 +432,7 @@ public class MapsActivity extends AppCompatActivity
                     toToPosition.bizState = rawData[BIZSTATE];
                     toToPosition.phone = rawData[PHONE];
                     toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
+                    toToPosition.msiCode = Integer.valueOf(rawData[MSI]);
                     LatLng targetLatLng = null;
                     try {
                         targetLatLng = AddressConvert.getLatLng(MapsActivity.this, toToPosition.addressData);
@@ -463,6 +464,7 @@ public class MapsActivity extends AppCompatActivity
                     obj.setAddressData(toToPosition.addressData);
                     obj.setLatitude(toToPosition.latLng.latitude);
                     obj.setLongtitude(toToPosition.latLng.longitude);
+                    obj.setMsiCode(toToPosition.msiCode);
                 }
             }
             else {
@@ -484,6 +486,7 @@ public class MapsActivity extends AppCompatActivity
                     position.bizState = obj.getBizState();
                     position.phone = obj.getPhone();
                     position.latLng = new LatLng(obj.getLatitude(), obj.getLongtitude());
+                    position.msiCode = obj.getMsiCode();
                     positionList.add(position);
                     publishProgress("progress", Integer.toString(i), "지도 마킹 " + Integer.toString(i) + "번 작업중");
                 }

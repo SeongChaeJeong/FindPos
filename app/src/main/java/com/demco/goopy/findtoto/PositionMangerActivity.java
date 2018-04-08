@@ -321,6 +321,7 @@ public class PositionMangerActivity extends AppCompatActivity
                                 obj.setTargetBiz(newPosition.biz);
                                 obj.setPhone(newPosition.phone);
                                 obj.setAddressData(newPosition.addressData);
+                                obj.setMsiCode(newPosition.msiCode);
 
                                 LatLng targetLatLng = null;
                                 try {
@@ -647,6 +648,8 @@ public class PositionMangerActivity extends AppCompatActivity
         public void onBindViewHolder(CustomViewHolder customViewHolder, int i) {
             final ToToPosition toToPosition = feedItemList.get(i);
             int colorIndex = -1;
+
+            customViewHolder.msiCode.setText(String.format(getString(R.string.market_msi_code_label), toToPosition.msiCode));
             if (bizCategoryColorIndexs.containsKey(toToPosition.biz)) {
                 colorIndex = bizCategoryColorIndexs.get(toToPosition.biz);
             }
@@ -668,13 +671,10 @@ public class PositionMangerActivity extends AppCompatActivity
                 customViewHolder.marketTitle.setText("");
             }
             if(TextUtils.isEmpty(toToPosition.biz) == false) {
-//                customViewHolder.marketCategory.setTextColor(textColor);
-//                customViewHolder.marketCategory.setText(toToPosition.biz);
                 customViewHolder.selectItemBtn.setText(toToPosition.biz);
                 customViewHolder.selectItemBtn.setTextColor(textColor);
             }
             else {
-//                customViewHolder.marketCategory.setText("");
                 customViewHolder.selectItemBtn.setText("");
             }
             if(TextUtils.isEmpty(toToPosition.addressData) == false) {
@@ -710,15 +710,15 @@ public class PositionMangerActivity extends AppCompatActivity
         }
 
         class CustomViewHolder extends RecyclerView.ViewHolder {
+            protected TextView msiCode;
             protected TextView marketTitle;
             protected TextView marketCategory;
             protected TextView marketAddress;
             protected Button selectItemBtn;
-            protected View marketColor;
 
             public CustomViewHolder(View view) {
                 super(view);
-//                this.marketColor = view.findViewById(R.id.market_color);
+                this.msiCode = (TextView) view.findViewById(R.id.market_msi_code);
                 this.marketTitle = (TextView) view.findViewById(R.id.market_title);
                 this.marketCategory = (TextView) view.findViewById(R.id.market_category);
                 this.marketAddress = (TextView) view.findViewById(R.id.market_address);
@@ -728,15 +728,12 @@ public class PositionMangerActivity extends AppCompatActivity
     }
 
     public class AddLoadMarkerTask extends AsyncTask<Boolean, String, String> {
-
-//        private WeakReference<MapsActivity> activityWeakReference;
         ProgressDialog progressDialog;
         Context mContext;
         int mTitle;
         int mMessage;
 
         public AddLoadMarkerTask(Context context, int title, int message) {
-//            activityWeakReference = new WeakReference<>(context);
             mContext = context;
             mTitle = title;
             mMessage = message;
@@ -761,7 +758,7 @@ public class PositionMangerActivity extends AppCompatActivity
             bizCategoryColorMap.put(getResources().getString(R.string.none), BitmapDescriptorFactory.HUE_ORANGE);
             List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
             // 지울 게 아니라 msi 코드가 없는 것만 읽기처리필요
-            positionList.clear();
+//            positionList.clear();
             markerColorIndex = 0;
             if(params[0] == false) {
                 HSSFSheet mySheet = FileManager.getReadExcelSheet(PositionMangerActivity.this,"address.xls");
@@ -778,8 +775,9 @@ public class PositionMangerActivity extends AppCompatActivity
                     HSSFRow myRow = (HSSFRow) rowIter.next();
                 }
 
-                RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
-                toToPositionRealmObjRealmResults.deleteAllFromRealm();
+                // 디비를 지우면 안됨....
+//                RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
+//                toToPositionRealmObjRealmResults.deleteAllFromRealm();
                 int timeoutError = 0;
                 int rowIndex = 0;
                 while(rowIter.hasNext()) {
@@ -792,7 +790,6 @@ public class PositionMangerActivity extends AppCompatActivity
                     Iterator<Cell> cellIter = myRow.cellIterator();
                     int i = 0;
                     final ToToPosition toToPosition = new ToToPosition();
-                    toToPosition.uniqueId = UUID.randomUUID().toString();
                     while (cellIter.hasNext()) {
                         if(i == LAST_INDEX) {
                             break;
@@ -810,6 +807,13 @@ public class PositionMangerActivity extends AppCompatActivity
                             }
                         }
                     }
+                    toToPosition.msiCode = Integer.valueOf(rawData[MSI]);
+                    if(containsMSICode(positionList, toToPosition.msiCode)) {
+                        Log.d("READ ", "이미 존재: " + toToPosition.msiCode);
+                        continue;
+                    }
+                    Log.e("READ ", "                   ================= 신규: " + toToPosition.msiCode);
+                    toToPosition.uniqueId = UUID.randomUUID().toString();
                     toToPosition.name = rawData[NAME];
                     toToPosition.biz = rawData[BUSINESS];
                     toToPosition.channel = rawData[CHANNEL];
@@ -847,6 +851,7 @@ public class PositionMangerActivity extends AppCompatActivity
                     obj.setAddressData(toToPosition.addressData);
                     obj.setLatitude(toToPosition.latLng.latitude);
                     obj.setLongtitude(toToPosition.latLng.longitude);
+                    obj.setMsiCode(toToPosition.msiCode);
                 }
             }
             else {

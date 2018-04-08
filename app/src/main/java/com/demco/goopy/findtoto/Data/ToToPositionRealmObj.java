@@ -21,6 +21,7 @@ public class ToToPositionRealmObj extends RealmObject {
     private String addressData;
     private String phone; // 잘못된 주소체크 용으로 사용, 이미 있는 필드를 사용하기 위해서...
     private String bizState;
+    private int msiCode;
 
     public String getUniqueId() {
         return uniqueId;
@@ -84,5 +85,13 @@ public class ToToPositionRealmObj extends RealmObject {
 
     public void setBizState(String bizState) {
         this.bizState = bizState;
+    }
+
+    public int getMsiCode() {
+        return msiCode;
+    }
+
+    public void setMsiCode(int msiCode) {
+        this.msiCode = msiCode;
     }
 }
