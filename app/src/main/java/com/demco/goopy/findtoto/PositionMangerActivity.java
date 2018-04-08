@@ -1,11 +1,13 @@
 package com.demco.goopy.findtoto;
 
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.ColorDrawable;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -13,24 +15,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.text.Editable;
 import android.text.TextUtils;
-import android.text.TextWatcher;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
-
+import android.util.Log;
+import android.view.*;
+import android.widget.*;
 import com.afollestad.materialdialogs.DialogAction;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.demco.goopy.findtoto.Data.PositionDataSingleton;
@@ -40,24 +28,22 @@ import com.demco.goopy.findtoto.Utils.AddressConvert;
 import com.demco.goopy.findtoto.Utils.FileManager;
 import com.demco.goopy.findtoto.Utils.KoreanTextMatch;
 import com.demco.goopy.findtoto.Utils.KoreanTextMatcher;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import io.realm.Realm;
+import io.realm.RealmResults;
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
-import io.realm.Realm;
-
-import static com.demco.goopy.findtoto.Data.ToToPosition.DELETE;
-import static com.demco.goopy.findtoto.Data.ToToPosition.ERROR_CHANNEL;
-import static com.demco.goopy.findtoto.Data.ToToPosition.MODIFY;
-import static com.demco.goopy.findtoto.Data.ToToPosition.NONE;
-import static com.demco.goopy.findtoto.MapsActivity.RESULT_ITEM_SELECT;
-import static com.demco.goopy.findtoto.MapsActivity.RESULT_TEMP_POSITION;
-import static com.demco.goopy.findtoto.MapsActivity.defaultLatitude;
-import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
+import static com.demco.goopy.findtoto.Data.ToToPosition.*;
+import static com.demco.goopy.findtoto.MapsActivity.*;
+import static com.demco.goopy.findtoto.Utils.FileManager.*;
 
 /**
  * Created by goopy on 2017-03-25.
@@ -81,6 +67,8 @@ public class PositionMangerActivity extends AppCompatActivity
     private List<ToToPosition> dataset;
     private List<ToToPosition> dataModifySet;
     private List<ToToPosition> searchResultdataset = new ArrayList<>();
+    private Map<String, Float> bizCategoryColorMap = new HashMap<>();
+    int markerColorIndex = 0;
     private List<String> bizCategoryList = new ArrayList<>();
     private double focusLatitude = defaultLatitude;
     private double focusLongitude = defaultLongitude;
@@ -88,33 +76,13 @@ public class PositionMangerActivity extends AppCompatActivity
     private String focusMarkerId = "";
     private ToToPosition selectedItem = null;
     private String selectItemUniqeId;
+    TextView msiCodeView = null;
     Toolbar myToolbar = null;
     EditText searchText = null;
     EditText titleText = null;
     EditText bizText = null;
     EditText addressText = null;
     ImageButton clearButton = null;
-
-    TextWatcher addressWatcher = new TextWatcher() {
-        @Override
-        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-
-        }
-
-        @Override
-        public void onTextChanged(CharSequence s, int start, int before, int count) {
-
-        }
-
-        @Override
-        public void afterTextChanged(Editable s) {
-//            String address = addressText.getText().toString();
-//            if(address != null && address.compareTo(s.toString()) != 0) {
-//                selectedItem = null;
-//                selectItemUniqeId = "";
-//            }
-        }
-    };
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -133,6 +101,7 @@ public class PositionMangerActivity extends AppCompatActivity
         }
 
         setContentView(R.layout.activity_position_list);
+        msiCodeView = (TextView)findViewById(R.id.market_msi_code) ;
         searchText = (EditText)findViewById(R.id.search_text);
         titleText = (EditText)findViewById(R.id.edit_title);
         bizText = (EditText)findViewById(R.id.market_category);
@@ -194,7 +163,6 @@ public class PositionMangerActivity extends AppCompatActivity
             public void onNothingSelected(AdapterView<?> parent) {
             }
         });
-
 
         if(focusLongitude != defaultLongitude && focusLatitude != defaultLatitude) {
             String address = AddressConvert.getAddress(this, focusLatitude, focusLongitude);
@@ -630,8 +598,7 @@ public class PositionMangerActivity extends AppCompatActivity
                 onBackPressed();
                 return true;
             case R.id.refresh_map_datafile:
-//                new MapsActivity.AddLoadMarkerTask(getApplicationContext(), R.string.wait_for_map_reload_title, R.string.wait_for_map_reload).execute(true);
-
+                new AddLoadMarkerTask(PositionMangerActivity.this, R.string.wait_for_map_reload_title, R.string.wait_for_map_reload).execute(false);
                 break;
             case R.id.app_version:
                 String version;
@@ -701,11 +668,14 @@ public class PositionMangerActivity extends AppCompatActivity
                 customViewHolder.marketTitle.setText("");
             }
             if(TextUtils.isEmpty(toToPosition.biz) == false) {
-                customViewHolder.marketCategory.setTextColor(textColor);
-                customViewHolder.marketCategory.setText(toToPosition.biz);
+//                customViewHolder.marketCategory.setTextColor(textColor);
+//                customViewHolder.marketCategory.setText(toToPosition.biz);
+                customViewHolder.selectItemBtn.setText(toToPosition.biz);
+                customViewHolder.selectItemBtn.setTextColor(textColor);
             }
             else {
-                customViewHolder.marketCategory.setText("");
+//                customViewHolder.marketCategory.setText("");
+                customViewHolder.selectItemBtn.setText("");
             }
             if(TextUtils.isEmpty(toToPosition.addressData) == false) {
                 customViewHolder.marketAddress.setTextColor(textColor);
@@ -756,5 +726,165 @@ public class PositionMangerActivity extends AppCompatActivity
             }
         }
     }
+
+    public class AddLoadMarkerTask extends AsyncTask<Boolean, String, String> {
+
+//        private WeakReference<MapsActivity> activityWeakReference;
+        ProgressDialog progressDialog;
+        Context mContext;
+        int mTitle;
+        int mMessage;
+
+        public AddLoadMarkerTask(Context context, int title, int message) {
+//            activityWeakReference = new WeakReference<>(context);
+            mContext = context;
+            mTitle = title;
+            mMessage = message;
+            progressDialog = new ProgressDialog(mContext);
+            progressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+            progressDialog.setCancelable(false);
+            progressDialog.setTitle(mTitle);
+            progressDialog.setMessage(getResources().getString(mMessage));
+            progressDialog.show();
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected String doInBackground(Boolean... params) {
+            Realm realm = Realm.getDefaultInstance();
+            realm.beginTransaction();
+            bizCategoryColorMap.clear();
+            bizCategoryColorMap.put(getResources().getString(R.string.none), BitmapDescriptorFactory.HUE_ORANGE);
+            List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
+            // 지울 게 아니라 msi 코드가 없는 것만 읽기처리필요
+            positionList.clear();
+            markerColorIndex = 0;
+            if(params[0] == false) {
+                HSSFSheet mySheet = FileManager.getReadExcelSheet(PositionMangerActivity.this,"address.xls");
+                if(null == mySheet) {
+                    realm.commitTransaction();
+                    realm.close();
+                    return null;
+                }
+                int totalCount = mySheet.getLastRowNum();
+                publishProgress("max", Integer.toString(totalCount));
+                Iterator<Row> rowIter = mySheet.rowIterator();
+                // 헤더 부분
+                if(rowIter.hasNext()) {
+                    HSSFRow myRow = (HSSFRow) rowIter.next();
+                }
+
+                RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
+                toToPositionRealmObjRealmResults.deleteAllFromRealm();
+                int timeoutError = 0;
+                int rowIndex = 0;
+                while(rowIter.hasNext()) {
+                    ++rowIndex;
+                    publishProgress("progress", Integer.toString(rowIndex), "데이터 읽기" + Integer.toString(rowIndex) + "번 작업중");
+                    String[] rawData = new String[LAST_INDEX];
+                    Arrays.fill(rawData, ""); //특정 값으로 초기
+
+                    HSSFRow myRow = (HSSFRow) rowIter.next();
+                    Iterator<Cell> cellIter = myRow.cellIterator();
+                    int i = 0;
+                    final ToToPosition toToPosition = new ToToPosition();
+                    toToPosition.uniqueId = UUID.randomUUID().toString();
+                    while (cellIter.hasNext()) {
+                        if(i == LAST_INDEX) {
+                            break;
+                        }
+                        HSSFCell myCell = (HSSFCell) cellIter.next();
+                        if (ADDRESS1 <= i && i <= ADDRESS5) {
+                            toToPosition.addressList.add(myCell.toString());
+                            i++;
+                        } else {
+                            try {
+                                rawData[i++] = myCell.toString();
+                            }
+                            catch (ArrayIndexOutOfBoundsException e) {
+                                Log.e("PositionMangerActivity", e.getMessage().toString());
+                            }
+                        }
+                    }
+                    toToPosition.name = rawData[NAME];
+                    toToPosition.biz = rawData[BUSINESS];
+                    toToPosition.channel = rawData[CHANNEL];
+                    toToPosition.bizState = rawData[BIZSTATE];
+                    toToPosition.phone = rawData[PHONE];
+                    toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
+                    LatLng targetLatLng = null;
+                    try {
+                        targetLatLng = AddressConvert.getLatLng(PositionMangerActivity.this, toToPosition.addressData);
+                        if (targetLatLng == null) {
+                            targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                            toToPosition.phone = ERROR_CHANNEL;
+                        }
+                    } catch (TimeoutException e) {
+                        targetLatLng = new LatLng(defaultLatitude, defaultLongitude);
+                        if(timeoutError++ < 10) {
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(PositionMangerActivity.this, R.string.map_address_timeout, Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }
+                    }
+                    toToPosition.latLng = targetLatLng;
+                    positionList.add(toToPosition);
+
+                    // 파일에서 읽은 엑셀 정보를 디비 컬럼에 넣음
+                    ToToPositionRealmObj obj = realm.createObject(ToToPositionRealmObj.class);
+                    obj.setUniqueId(toToPosition.uniqueId);
+                    obj.setBizState(toToPosition.bizState);
+                    obj.setTargetName(toToPosition.name);
+                    obj.setTargetBiz(toToPosition.biz);
+                    obj.setPhone(toToPosition.phone);
+                    obj.setAddressData(toToPosition.addressData);
+                    obj.setLatitude(toToPosition.latLng.latitude);
+                    obj.setLongtitude(toToPosition.latLng.longitude);
+                }
+            }
+            else {
+                // 디비에서 새로 읽을 일 없을 것 같음
+            }
+
+            final Map<String, Integer> bizCategoryColorIndexs = PositionDataSingleton.getInstance().getBizCategoryColorIndexs();
+            for(final ToToPosition position: positionList) {
+                if (bizCategoryColorMap.containsKey(position.biz) == false) {
+                    bizCategoryColorIndexs.put(position.biz, markerColorIndex % arrayPinColors.length);
+                    bizCategoryColorMap.put(position.biz, arrayPinColors[markerColorIndex++ % arrayPinColors.length]);
+                }
+            }
+
+            realm.commitTransaction();
+            realm.close();
+            return null;
+        }
+
+        @Override
+        protected void onProgressUpdate(String... progress) {
+            if (progress[0].equals("progress")) {
+                progressDialog.setProgress(Integer.parseInt(progress[1]));
+                progressDialog.setMessage(progress[2]);
+            }
+            else if (progress[0].equals("max")) {
+                progressDialog.setMax(Integer.parseInt(progress[1]));
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            dataset = PositionDataSingleton.getInstance().getMarkerPositions();
+            mAdapter = new PositionAdapter(PositionMangerActivity.this, dataset);
+            mRecyclerView.setAdapter(mAdapter);
+            progressDialog.dismiss();
+        }
+    };
+
 
 }

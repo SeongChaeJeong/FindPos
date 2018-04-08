@@ -4,6 +4,7 @@
     <string name="permission_not_exist">스토리지 접근권한이 없습니다.</string>
     <string name="market_title_label">상호</string>
     <string name="market_category_label">업태</string>
+    <string name="market_msi_code_label">MSI: %s</string>
     <string name="address_label">주소</string>
     <string name="title_activity_maps">ToTo</string>
     <string name="close_content">앱을 종료하시겠습니까?</string>

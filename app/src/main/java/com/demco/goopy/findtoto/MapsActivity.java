@@ -126,23 +126,13 @@ public class MapsActivity extends AppCompatActivity
     private long mainCircleRadius = (long)DEFAULT_RADIUS_METERS;
 
     private Map<String, MapMarker> visibleMarkers = new HashMap<>();
-    private List<MapMarker> tempMarkers = new ArrayList<>();
-    private List<ToToPosition> totoPositions = new ArrayList<>();
     private Map<String, Float> bizCategoryColorMap = new HashMap<>();
-    private View capView;
-    private ViewGroup mainLayout;
-    private ImageView imageView;
-    private Bitmap mbitmap;
+    private List<MapMarker> tempMarkers = new ArrayList<>();
     private boolean dataLoadComplete = false;
     private Handler handler = new Handler();
 
-    SensorManager sm;
-    SensorEventListener accL;
-    SensorEventListener oriL;
-    Sensor oriSensor;
-    Sensor accSensor;
 
-    private float[] arrayPinColors = new float[] {
+    static public float[] arrayPinColors = new float[] {
             BitmapDescriptorFactory.HUE_AZURE,
             BitmapDescriptorFactory.HUE_BLUE,
             BitmapDescriptorFactory.HUE_CYAN,
@@ -221,7 +211,6 @@ public class MapsActivity extends AppCompatActivity
         mCloseImageView = (ImageView) findViewById(R.id.app_close);
         mScreenSaveImageView = (ImageView) findViewById(R.id.screen_save);
         mGpsOffImageView = (ImageView) findViewById(R.id.gps_off);
-        mainLayout = (ViewGroup) findViewById(R.id.main_layout);
 
         mResizerRootView = LayoutInflater.from(this).inflate(R.layout.marker_layout, null);
         tvResizer = (TextView) mResizerRootView.findViewById(R.id.tv_marker);
@@ -621,8 +610,6 @@ public class MapsActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-//        sm.registerListener(accL, accSensor, SensorManager.SENSOR_DELAY_NORMAL);    // 가속도 센서 리스너 오브젝트를 등록
-//        sm.registerListener(oriL, oriSensor, SensorManager.SENSOR_DELAY_NORMAL);    // 방향 센서 리스너 오브젝트를 등록
         if(broadcastReceiver == null){
             broadcastReceiver = new BroadcastReceiver() {
                 @Override

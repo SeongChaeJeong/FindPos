@@ -42,17 +42,18 @@ import static com.demco.goopy.findtoto.MapsActivity.defaultLongitude;
 
 public class FileManager {
 
-    public static int NAME = 0;
-    public static int BUSINESS = 1;
-    public static int CHANNEL = 2;
-    public static int ADDRESS1 = 3;
-    public static int ADDRESS2 = 4;
-    public static int ADDRESS3 = 5;
-    public static int ADDRESS4 = 6;
-    public static int ADDRESS5 = 7;
-    public static int BIZSTATE = 8;
-    public static int PHONE = 9;
-    public static int LAST_INDEX = 10;
+    public static int MSI = 0;
+    public static int NAME = 1;
+    public static int BUSINESS = 2;
+    public static int CHANNEL = 3;
+    public static int ADDRESS1 = 4;
+    public static int ADDRESS2 = 5;
+    public static int ADDRESS3 = 6;
+    public static int ADDRESS4 = 7;
+    public static int ADDRESS5 = 8;
+    public static int BIZSTATE = 9;
+    public static int PHONE = 10;
+    public static int LAST_INDEX = 11;
 
 
     public static final String RECEIVEFILE_DIR = "/dmko";
@@ -279,6 +280,7 @@ public class FileManager {
                     }
                     Log.d("FileUtils", "Cell Value: " +  myCell.toString());
                 }
+                toToPosition.msiCode = Integer.valueOf(rawData[MSI]);
                 toToPosition.name = rawData[NAME];
                 toToPosition.biz = rawData[BUSINESS];
                 toToPosition.channel = rawData[CHANNEL];
@@ -304,7 +306,7 @@ public class FileManager {
                 toToPosition.latLng = targetLatLng;
                 positionList.add(toToPosition);
             }
-        }catch (Exception e){
+        } catch (Exception e){
 //            Toast.makeText(context, R.string.file_not_exist, Toast.LENGTH_LONG).show();
             e.printStackTrace();
             return false;

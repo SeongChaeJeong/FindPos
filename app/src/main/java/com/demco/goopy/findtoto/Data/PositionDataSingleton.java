@@ -14,6 +14,7 @@ public class PositionDataSingleton {
 
     private boolean GPSRecevie = true;
     private Map<String, Integer> bizCategoryColorIndexs = new HashMap<>();
+    private Map<String, Float> bizCategoryColorMap = new HashMap<>();
     private List<ToToPosition> markerPositions = null;
     private List<ToToPosition> markerModifyPositions = null;
 

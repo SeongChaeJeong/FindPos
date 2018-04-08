@@ -28,4 +28,5 @@ public class ToToPosition {
     public List<String> addressList = new ArrayList<>(5);
     public String addressData = null;
     public LatLng latLng;
+    public int msiCode = 0;
 }
