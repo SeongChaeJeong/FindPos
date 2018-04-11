@@ -290,7 +290,7 @@ public class FileManager {
                     }
                     Log.d("FileUtils", "Cell Value: " +  myCell.toString());
                 }
-                toToPosition.msiCode = Integer.valueOf(rawData[MSI]);
+                toToPosition.msiCode = (int)Double.parseDouble(rawData[MSI]);
                 toToPosition.name = rawData[NAME];
                 toToPosition.biz = rawData[BUSINESS];
                 toToPosition.channel = rawData[CHANNEL];

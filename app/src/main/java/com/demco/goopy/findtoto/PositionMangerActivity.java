@@ -52,6 +52,7 @@ import static com.demco.goopy.findtoto.Utils.FileManager.*;
 public class PositionMangerActivity extends AppCompatActivity
         implements View.OnClickListener {
 
+    private AddLoadMarkerTask addLoadMarkerTask;
     public static String MARKER_TYPE = "markerType";
     public static String MARKER_ID = "markerID";
     public static String LATITUDE_POS = "latitudePos";
@@ -221,6 +222,14 @@ public class PositionMangerActivity extends AppCompatActivity
 
         mAdapter = new PositionAdapter(this, dataset);
         mRecyclerView.setAdapter(mAdapter);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if(addLoadMarkerTask != null) {
+            addLoadMarkerTask.onDestroy();
+        }
     }
 
     @Override
@@ -599,7 +608,8 @@ public class PositionMangerActivity extends AppCompatActivity
                 onBackPressed();
                 return true;
             case R.id.refresh_map_datafile:
-                new AddLoadMarkerTask(PositionMangerActivity.this, R.string.wait_for_map_reload_title, R.string.wait_for_map_reload).execute(false);
+                addLoadMarkerTask = new AddLoadMarkerTask(PositionMangerActivity.this, R.string.wait_for_map_reload_title, R.string.wait_for_map_reload);
+                addLoadMarkerTask.execute(false);
                 break;
             case R.id.app_version:
                 String version;
@@ -745,6 +755,10 @@ public class PositionMangerActivity extends AppCompatActivity
             progressDialog.show();
         }
 
+        public void onDestroy() {
+            progressDialog.dismiss();
+        }
+
         @Override
         protected void onPreExecute() {
             super.onPreExecute();
@@ -757,8 +771,6 @@ public class PositionMangerActivity extends AppCompatActivity
             bizCategoryColorMap.clear();
             bizCategoryColorMap.put(getResources().getString(R.string.none), BitmapDescriptorFactory.HUE_ORANGE);
             List<ToToPosition> positionList = PositionDataSingleton.getInstance().getMarkerPositions();
-            // 지울 게 아니라 msi 코드가 없는 것만 읽기처리필요
-//            positionList.clear();
             markerColorIndex = 0;
             if(params[0] == false) {
                 HSSFSheet mySheet = FileManager.getReadExcelSheet(PositionMangerActivity.this,"address.xls");
@@ -775,9 +787,11 @@ public class PositionMangerActivity extends AppCompatActivity
                     HSSFRow myRow = (HSSFRow) rowIter.next();
                 }
 
-                // 디비를 지우면 안됨....
-//                RealmResults toToPositionRealmObjRealmResults = realm.where(ToToPositionRealmObj.class).findAll();
-//                toToPositionRealmObjRealmResults.deleteAllFromRealm();
+                RealmResults<ToToPositionRealmObj> objs = realm.where(ToToPositionRealmObj.class).equalTo("msiCode", 0).findAll();
+                if(objs.isEmpty() == false){
+                    objs.deleteAllFromRealm();
+                }
+
                 int timeoutError = 0;
                 int rowIndex = 0;
                 while(rowIter.hasNext()) {
@@ -807,12 +821,19 @@ public class PositionMangerActivity extends AppCompatActivity
                             }
                         }
                     }
-                    toToPosition.msiCode = Integer.valueOf(rawData[MSI]);
-                    if(containsMSICode(positionList, toToPosition.msiCode)) {
-                        Log.d("READ ", "이미 존재: " + toToPosition.msiCode);
+
+                    try {
+                        toToPosition.msiCode = (int) Double.parseDouble(rawData[MSI]);
+                    }
+                    catch (NumberFormatException e) {
+                        // 없는 정보임...
                         continue;
                     }
-                    Log.e("READ ", "                   ================= 신규: " + toToPosition.msiCode);
+                    if(containsMSICode(positionList, toToPosition.msiCode)) {
+//                        Log.d("READ ", "이미 존재: " + toToPosition.msiCode);
+                        continue;
+                    }
+//                    Log.e("READ ", "                   ================= 신규: " + toToPosition.msiCode);
                     toToPosition.uniqueId = UUID.randomUUID().toString();
                     toToPosition.name = rawData[NAME];
                     toToPosition.biz = rawData[BUSINESS];
@@ -884,10 +905,15 @@ public class PositionMangerActivity extends AppCompatActivity
 
         @Override
         protected void onPostExecute(String result) {
+            progressDialog.dismiss();
             dataset = PositionDataSingleton.getInstance().getMarkerPositions();
+            for(ToToPosition item: dataset) {
+                if(item.msiCode == 0) {
+                    dataset.remove(item);
+                }
+            }
             mAdapter = new PositionAdapter(PositionMangerActivity.this, dataset);
             mRecyclerView.setAdapter(mAdapter);
-            progressDialog.dismiss();
         }
     };
 

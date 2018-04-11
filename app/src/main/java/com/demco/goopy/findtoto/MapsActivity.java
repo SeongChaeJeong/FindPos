@@ -104,6 +104,8 @@ public class MapsActivity extends AppCompatActivity
     private BroadcastReceiver broadcastReceiver;
     private GpsInfo gps;
 
+    private AddLoadMarkerTask addLoadMarkerTask;
+
     // 수자가 클수록 줌인 됨
     // 0 ~ 19
     private static final float DEFAULT_ZOOM = 16f;
@@ -331,28 +333,31 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnInfoWindowLongClickListener(this);
 
         if(hasPositionDataFromDB()) {
-            new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title_db, R.string.wait_for_map_load_db).execute(true);
+            addLoadMarkerTask = new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title_db, R.string.wait_for_map_load_db);
+            addLoadMarkerTask.execute(true);
         }
         else {
-            new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title, R.string.wait_for_map_load).execute(false);
+            addLoadMarkerTask = new AddLoadMarkerTask(MapsActivity.this, R.string.wait_for_map_load_title, R.string.wait_for_map_load);
+            addLoadMarkerTask.execute(false);
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        if(addLoadMarkerTask != null) {
+            addLoadMarkerTask.onDestroy();
+        }
     }
 
-    public class AddLoadMarkerTask extends AsyncTask<Boolean, String, String> {
+    private class AddLoadMarkerTask extends AsyncTask<Boolean, String, String> {
 
-//        private WeakReference<MapsActivity> activityWeakReference;
         ProgressDialog progressDialog;
         Context mContext;
         int mTitle;
         int mMessage;
 
         public AddLoadMarkerTask(Context context, int title, int message) {
-//            activityWeakReference = new WeakReference<>(context);
             mContext = context;
             mTitle = title;
             mMessage = message;
@@ -362,6 +367,10 @@ public class MapsActivity extends AppCompatActivity
             progressDialog.setTitle(mTitle);
             progressDialog.setMessage(getResources().getString(mMessage));
             progressDialog.show();
+        }
+
+        public void onDestroy() {
+            progressDialog.dismiss();
         }
 
         @Override
@@ -426,13 +435,21 @@ public class MapsActivity extends AppCompatActivity
 
                         }
                     }
+                    try {
+                        toToPosition.msiCode = (int)Double.parseDouble(rawData[MSI]);
+                    }
+                    catch (NumberFormatException e) {
+                        // 없는 정보임...
+                        continue;
+                    }
+
                     toToPosition.name = rawData[NAME];
                     toToPosition.biz = rawData[BUSINESS];
                     toToPosition.channel = rawData[CHANNEL];
                     toToPosition.bizState = rawData[BIZSTATE];
                     toToPosition.phone = rawData[PHONE];
                     toToPosition.addressData = TextUtils.join(" ", toToPosition.addressList);
-                    toToPosition.msiCode = Integer.valueOf(rawData[MSI]);
+
                     LatLng targetLatLng = null;
                     try {
                         targetLatLng = AddressConvert.getLatLng(MapsActivity.this, toToPosition.addressData);
@@ -518,8 +535,8 @@ public class MapsActivity extends AppCompatActivity
 
         @Override
         protected void onPostExecute(String result) {
-            placeMarkers(handler);
             progressDialog.dismiss();
+            placeMarkers(handler);
         }
     };
 
