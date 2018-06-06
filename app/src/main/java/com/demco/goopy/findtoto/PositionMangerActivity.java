@@ -794,6 +794,7 @@ public class PositionMangerActivity extends AppCompatActivity
 
                 int timeoutError = 0;
                 int rowIndex = 0;
+                List<Integer> newFileMsiCodeList = new ArrayList<>();
                 while(rowIter.hasNext()) {
                     ++rowIndex;
                     publishProgress("progress", Integer.toString(rowIndex), "데이터 읽기" + Integer.toString(rowIndex) + "번 작업중");
@@ -829,6 +830,7 @@ public class PositionMangerActivity extends AppCompatActivity
                         // 없는 정보임...
                         continue;
                     }
+                    newFileMsiCodeList.add(toToPosition.msiCode);
                     if(containsMSICode(positionList, toToPosition.msiCode)) {
 //                        Log.d("READ ", "이미 존재: " + toToPosition.msiCode);
                         continue;
@@ -873,6 +875,16 @@ public class PositionMangerActivity extends AppCompatActivity
                     obj.setLatitude(toToPosition.latLng.latitude);
                     obj.setLongtitude(toToPosition.latLng.longitude);
                     obj.setMsiCode(toToPosition.msiCode);
+                }
+
+
+                // 데이터 파일에 없는 거는 전체 목록에서 지움
+                List<ToToPosition> tempPositionList = new ArrayList<>();
+                tempPositionList.addAll(positionList);
+                for(final ToToPosition position: tempPositionList) {
+                    if(newFileMsiCodeList.contains(position.msiCode) == false) {
+                        positionList.remove(position);
+                    }
                 }
             }
             else {

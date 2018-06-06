@@ -23,7 +23,7 @@ public class MyApplication extends MultiDexApplication {
     @Override
     public void onCreate() {
         super.onCreate();
-        ACRA.init(this);
+//        ACRA.init(this);
         Realm.init(getApplicationContext());
         RealmConfiguration config = new RealmConfiguration.Builder().build();
         Realm.setDefaultConfiguration(config);
