@@ -883,6 +883,10 @@ public class PositionMangerActivity extends AppCompatActivity
                 tempPositionList.addAll(positionList);
                 for(final ToToPosition position: tempPositionList) {
                     if(newFileMsiCodeList.contains(position.msiCode) == false) {
+                        ToToPositionRealmObj obj = realm.where(ToToPositionRealmObj.class).equalTo("uniqueId", position.uniqueId).findFirst();
+                        if(null != obj) {
+                            obj.deleteFromRealm();
+                        }
                         positionList.remove(position);
                     }
                 }
