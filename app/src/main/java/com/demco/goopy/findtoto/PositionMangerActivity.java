@@ -811,7 +811,13 @@ public class PositionMangerActivity extends AppCompatActivity
                         }
                         HSSFCell myCell = (HSSFCell) cellIter.next();
                         if (ADDRESS1 <= i && i <= ADDRESS5) {
-                            toToPosition.addressList.add(myCell.toString());
+                            if(myCell.getCellType() ==  Cell.CELL_TYPE_NUMERIC) {
+                                String strValue = String.valueOf((int)myCell.getNumericCellValue());
+                                toToPosition.addressList.add(strValue);
+                            }
+                            else {
+                                toToPosition.addressList.add(myCell.toString());
+                            }
                             i++;
                         } else {
                             try {

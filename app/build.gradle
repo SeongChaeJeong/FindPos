@@ -23,8 +23,8 @@ android {
             applicationId "com.demco.goopy.findtoto"
             minSdkVersion 16
             targetSdkVersion 25
-            versionCode 10017
-            versionName "1.0.17"
+            versionCode 10018
+            versionName "1.0.18"
             multiDexEnabled true
         }
     }
